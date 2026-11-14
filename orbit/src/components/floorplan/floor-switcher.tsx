@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Floor, MOLSON_FLOORS } from '@/constants/floorplans';
-import { Spacing } from '@/constants/theme';
+import { Radius, Size, Spacing, TouchTarget } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 type Props = {
   selectedId?: string;
@@ -12,6 +13,7 @@ type Props = {
 
 /** Row of floor buttons (44pt targets); the selected one is marked for assistive tech too. */
 export function FloorSwitcher({ selectedId, onSelect }: Props) {
+  const theme = useTheme();
   return (
     <View style={styles.row} accessibilityRole="tablist">
       {MOLSON_FLOORS.map((floor) => {
@@ -27,7 +29,7 @@ export function FloorSwitcher({ selectedId, onSelect }: Props) {
           >
             <ThemedView
               type={selected ? 'backgroundSelected' : 'background'}
-              style={[styles.chip, selected && styles.chipSelected]}
+              style={[styles.chip, selected && { borderColor: theme.accent }]}
             >
               <ThemedText type={selected ? 'smallBold' : 'small'}>{floor.label}</ThemedText>
             </ThemedView>
@@ -46,15 +48,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chip: {
-    minHeight: 44,
-    minWidth: 88,
+    minHeight: TouchTarget,
+    minWidth: Size.chipMin,
     paddingHorizontal: Spacing.three,
-    borderRadius: 22,
+    borderRadius: Radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  chipSelected: { borderColor: '#912338' },
   pressed: { opacity: 0.7 },
 });

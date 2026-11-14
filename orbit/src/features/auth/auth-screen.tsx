@@ -1,12 +1,18 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
+
+import { HERO_FOCUS, HERO_PHOTO, HERO_PHOTO_ALT } from '@/constants/images';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Screen } from '@/components/ui/screen';
+import { Icon } from '@/components/ui/icon';
 import { TextField } from '@/components/ui/text-field';
-import { Spacing } from '@/constants/theme';
+import { AuthFormWidth, FixedColors, Size, Spacing } from '@/constants/theme';
+import { useLayout } from '@/hooks/use-layout';
+import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
 
 type Mode = 'signIn' | 'signUp';
@@ -21,6 +27,8 @@ export function AuthScreen() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const signUp = mode === 'signUp';
+  const { isWide } = useLayout();
+  const theme = useTheme();
 
   async function submit() {
     setError(null);
@@ -50,7 +58,37 @@ export function AuthScreen() {
   }
 
   return (
-    <Screen title="ORBIT" subtitle="Your university, in one orbit.">
+    <View style={[styles.root, { backgroundColor: theme.background }]}>
+      {isWide && (
+        <View style={styles.photo}>
+          <Image
+            source={HERO_PHOTO}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            contentPosition={HERO_FOCUS}
+            accessibilityLabel={HERO_PHOTO_ALT}
+          />
+          <LinearGradient
+            colors={[FixedColors.heroScrimEnd, FixedColors.heroScrimStart]}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.photoCopy}>
+            <ThemedText type="display" style={{ color: FixedColors.white }}>
+              Your university. Connected.
+            </ThemedText>
+          </View>
+        </View>
+      )}
+      <ScrollView contentContainerStyle={styles.formWrap}>
+        <View style={styles.form}>
+          <View style={styles.brand}>
+            <View style={styles.logo}>
+              <Icon name="trip-origin" size="xl" color={FixedColors.white} />
+            </View>
+            <ThemedText type="displaySmall" accessibilityRole="header">
+              ORBIT
+            </ThemedText>
+          </View>
       <Card style={styles.card}>
         <ThemedText type="subtitle">{signUp ? 'Create your account' : 'Welcome back'}</ThemedText>
 
@@ -112,11 +150,27 @@ export function AuthScreen() {
           </Pressable>
         </View>
       </Card>
-    </Screen>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { gap: Spacing.three, padding: Spacing.four },
+  root: { flex: 1, flexDirection: 'row' },
+  photo: { flex: 1, justifyContent: 'flex-end', padding: Spacing.six, backgroundColor: FixedColors.shell },
+  photoCopy: { maxWidth: Size.copyMax },
+  formWrap: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.three },
+  form: { width: '100%', maxWidth: AuthFormWidth, gap: Spacing.four },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  logo: {
+    width: Spacing.six - Spacing.three,
+    height: Spacing.six - Spacing.three,
+    borderRadius: Spacing.three,
+    backgroundColor: FixedColors.shellActive,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  card: { gap: Spacing.three },
   switchRow: { flexDirection: 'row', gap: Spacing.two, justifyContent: 'center', flexWrap: 'wrap' },
 });

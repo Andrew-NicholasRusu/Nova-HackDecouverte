@@ -1,6 +1,7 @@
+import { FixedColors } from '@/constants/theme';
 import { getRoomEdges, Room } from '@/lib/floorplan/navmesh';
 
-const RED = '#d32f2f';
+const RED = FixedColors.roomHighlight;
 
 /** Returns the floor SVG with the room's region filled red and its navmesh edges drawn on top. */
 export function highlightRoom(svg: string, room: Room | null): string {

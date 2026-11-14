@@ -8,7 +8,7 @@ import { RoomList } from '@/components/floorplan/room-list';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Floor, MOLSON_FLOORS } from '@/constants/floorplans';
-import { Spacing } from '@/constants/theme';
+import { FixedColors, Size, Spacing, TouchTarget } from '@/constants/theme';
 import { getRoomRegions } from '@/lib/floorplan/regions';
 import { highlightRoom } from '@/lib/floorplan/highlight';
 import { getOtherRooms, getRooms, Room } from '@/lib/floorplan/navmesh';
@@ -207,11 +207,11 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   layout: { flex: 1 },
   layoutWide: { flexDirection: 'row' },
-  sidebar: { width: 300, padding: Spacing.three, gap: Spacing.three },
+  sidebar: { width: Size.roomPanel, padding: Spacing.three, gap: Spacing.three },
   topBar: { padding: Spacing.three, gap: Spacing.one },
   bottomBar: { padding: Spacing.three },
-  back: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
-  roomsButton: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  back: { minHeight: TouchTarget, justifyContent: 'center', alignSelf: 'flex-start' },
+  roomsButton: { minHeight: TouchTarget, justifyContent: 'center', alignSelf: 'flex-start' },
   roomsPanel: {
     ...StyleSheet.absoluteFill,
     padding: Spacing.three,
@@ -220,5 +220,5 @@ const styles = StyleSheet.create({
   region: { position: 'absolute', cursor: 'pointer' },
   pressed: { opacity: 0.7 },
   // White so the drawing stays legible in dark mode.
-  plan: { flex: 1, backgroundColor: '#ffffff' },
+  plan: { flex: 1, backgroundColor: FixedColors.planSurface },
 });

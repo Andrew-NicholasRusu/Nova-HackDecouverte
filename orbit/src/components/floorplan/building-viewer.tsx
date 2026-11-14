@@ -3,12 +3,15 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { BuildingViewerMaxWidth, Radius, Spacing, FixedColors } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { Floor, MOLSON_FLOORS, MOLSON_PHOTO, MOLSON_PHOTO_RATIO } from '@/constants/floorplans';
 
 type Props = { onSelect: (floor: Floor) => void };
 
 /** Street photo of the Molson building; each floor band highlights on hover and opens its plan. */
 export function BuildingViewer({ onSelect }: Props) {
+  const theme = useTheme();
   const [hovered, setHovered] = useState<string | null>(null);
 
   return (
@@ -35,12 +38,12 @@ export function BuildingViewer({ onSelect }: Props) {
                 top: `${band.top}%`,
                 height: `${band.height}%`,
               },
-              active && styles.bandActive,
+              active && [styles.bandActive, { backgroundColor: theme.accentSoft }],
             ]}
           >
             {active && (
-              <View style={styles.tag}>
-                <ThemedText type="smallBold" style={styles.tagText}>
+              <View style={[styles.tag, { backgroundColor: theme.accent }]}>
+                <ThemedText type="smallBold" style={{ color: theme.accentText }}>
                   {floor.label}
                 </ThemedText>
               </View>
@@ -55,9 +58,9 @@ export function BuildingViewer({ onSelect }: Props) {
 const styles = StyleSheet.create({
   frame: {
     width: '100%',
-    maxWidth: 520,
+    maxWidth: BuildingViewerMaxWidth,
     aspectRatio: MOLSON_PHOTO_RATIO,
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     overflow: 'hidden',
   },
   photo: { ...StyleSheet.absoluteFill },
@@ -70,14 +73,11 @@ const styles = StyleSheet.create({
     cursor: 'pointer',
   },
   bandActive: {
-    backgroundColor: 'rgba(145, 35, 56, 0.45)',
-    borderColor: '#ffffff',
+    borderColor: FixedColors.white,
   },
   tag: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: '#912338',
+    paddingHorizontal: Spacing.two + Spacing.one,
+    paddingVertical: Spacing.one,
+    borderRadius: Radius.pill,
   },
-  tagText: { color: '#ffffff' },
 });

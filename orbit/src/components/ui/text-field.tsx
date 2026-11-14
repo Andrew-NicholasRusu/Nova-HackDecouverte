@@ -1,7 +1,7 @@
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, TouchTarget, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type Props = TextInputProps & { label: string };
@@ -30,10 +30,10 @@ export function TextField({ label, style, ...rest }: Props) {
 const styles = StyleSheet.create({
   wrap: { gap: Spacing.one },
   input: {
-    minHeight: 44,
+    minHeight: TouchTarget,
     borderWidth: 1,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.three,
-    fontSize: 16,
+    ...Typography.body,
   },
 });

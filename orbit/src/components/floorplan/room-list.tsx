@@ -3,7 +3,7 @@ import { Pressable, SectionList, StyleSheet, TextInput, View } from 'react-nativ
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { FixedColors, Radius, Size, Spacing, TouchTarget, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Room } from '@/lib/floorplan/navmesh';
 
@@ -81,7 +81,7 @@ export function RoomList({ rooms, otherRooms, selectedCode, onSelect, onFocus }:
             >
               <ThemedView
                 type={selected ? 'backgroundSelected' : 'backgroundElement'}
-                style={[styles.row, selected && styles.rowSelected]}
+                style={[styles.row, selected && { borderLeftColor: FixedColors.roomHighlight }]}
               >
                 <ThemedText type={selected ? 'smallBold' : 'small'}>{item.label}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
@@ -99,28 +99,27 @@ export function RoomList({ rooms, otherRooms, selectedCode, onSelect, onFocus }:
 const styles = StyleSheet.create({
   root: { flex: 1, gap: Spacing.two },
   input: {
-    minHeight: 44,
+    minHeight: TouchTarget,
     paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.two,
-    fontSize: 16,
+    borderRadius: Radius.sm,
+    ...Typography.body,
   },
   header: {
-    minHeight: 32,
+    minHeight: Size.sectionHeader,
     justifyContent: 'center',
     paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.two,
+    borderRadius: Radius.sm,
     marginTop: Spacing.one,
   },
   row: {
-    minHeight: 44,
+    minHeight: TouchTarget,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.two,
+    borderRadius: Radius.sm,
     borderLeftWidth: 4,
     borderLeftColor: 'transparent',
   },
-  rowSelected: { borderLeftColor: '#d32f2f' },
   pressed: { opacity: 0.7 },
 });

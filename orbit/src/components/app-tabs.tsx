@@ -9,17 +9,15 @@ export default function AppTabs() {
   return (
     <NativeTabs
       backgroundColor={theme.backgroundElement}
-      indicatorColor={theme.backgroundSelected}
-      tintColor={theme.accent}
+      indicatorColor={theme.accentTint}
+      tintColor={theme.accentLink}
       labelStyle={{ selected: { color: theme.text } }}>
       {TABS.map((tab) => (
-        <NativeTabs.Trigger key={tab.name} name={tab.name}>
+        <NativeTabs.Trigger key={tab.name} name={tab.name} hidden={!tab.bar}>
           <NativeTabs.Trigger.Label>{tab.label}</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon sf={tab.sf} md={tab.md} />
         </NativeTabs.Trigger>
       ))}
-      {/* Reached from the Navigator tab, not a tab of its own. */}
-      <NativeTabs.Trigger name="floorplan" hidden />
     </NativeTabs>
   );
 }
