@@ -34,12 +34,17 @@ function getCredentials() {
 }
 
 /**
- * GET an endpoint, e.g. `concordiaGet<RawBuilding[]>('facilities/buildinglist')`.
- * The API requires a trailing slash (requests without one return HTTP 500).
+ * GET an endpoint, e.g. `concordiaGet<RawBuilding[]>('facilities/buildinglist', { trailingSlash: true })`.
+ * Endpoints disagree about trailing slashes (verified 2026-11-14): facilities/buildinglist returns
+ * HTTP 500 without one, while course/* filters return HTTP 500 *with* one.
  */
-export async function concordiaGet<T>(path: string): Promise<T> {
+export async function concordiaGet<T>(
+  path: string,
+  { trailingSlash = false }: { trailingSlash?: boolean } = {},
+): Promise<T> {
   const { user, key } = getCredentials();
-  const url = BASE_URL + path.replace(/^\/+/, '').replace(/\/*$/, '/');
+  const clean = path.replace(/^\/+/, '').replace(/\/+$/, '');
+  const url = BASE_URL + clean + (trailingSlash ? '/' : '');
   const auth = btoa(`${user}:${key}`);
 
   const res = await fetch(url, {
