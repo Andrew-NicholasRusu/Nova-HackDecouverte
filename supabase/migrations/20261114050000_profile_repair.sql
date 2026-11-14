@@ -8,6 +8,7 @@ select u.id, left(coalesce(u.raw_user_meta_data ->> 'display_name', ''), 60)
 from auth.users u
 on conflict (id) do nothing;
 
+drop policy if exists "Users can insert their own profile" on public.profiles;
 create policy "Users can insert their own profile"
   on public.profiles for insert
   to authenticated

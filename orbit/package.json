@@ -49,7 +49,12 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "node --experimental-strip-types --no-warnings --test \"src/**/*.test.ts\"",
-    "check:friends": "node --env-file=.env.local scripts/check-friends.mjs"
+    "check:friends": "node --env-file=.env.local scripts/check-friends.mjs",
+    "build:web": "expo export -p web",
+    "serve:web": "expo serve",
+    "deploy": "npm run build:web && npx eas-cli@latest deploy --prod",
+    "check:setup": "node --env-file=.env.local scripts/check-setup.mjs",
+    "check": "tsc --noEmit && expo lint && npm test"
   },
   "private": true
 }

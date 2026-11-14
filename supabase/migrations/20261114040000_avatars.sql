@@ -9,21 +9,25 @@ on conflict (id) do update
       allowed_mime_types = excluded.allowed_mime_types;
 
 -- Anyone signed in (or not) can view pictures; they are shown to friends and in search.
+drop policy if exists "Avatars are publicly readable" on storage.objects;
 create policy "Avatars are publicly readable"
   on storage.objects for select
   using (bucket_id = 'avatars');
 
 -- Students can only write inside their own folder: avatars/<their user id>/...
+drop policy if exists "Students upload their own avatar" on storage.objects;
 create policy "Students upload their own avatar"
   on storage.objects for insert
   to authenticated
   with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
 
+drop policy if exists "Students replace their own avatar" on storage.objects;
 create policy "Students replace their own avatar"
   on storage.objects for update
   to authenticated
   using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
 
+drop policy if exists "Students delete their own avatar" on storage.objects;
 create policy "Students delete their own avatar"
   on storage.objects for delete
   to authenticated

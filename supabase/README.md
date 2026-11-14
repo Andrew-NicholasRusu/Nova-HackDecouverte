@@ -9,6 +9,8 @@ Run each migration **in order** in the Supabase dashboard → SQL Editor (paste 
 5. `migrations/20261114040000_avatars.sql` — profile pictures (public `avatars` storage bucket)
 6. `migrations/20261114050000_profile_repair.sql` — creates missing profile rows so every account can edit its profile
 
+**Shortcut:** paste `apply-pending.sql` (migrations 5 and 6 in one go; safe to re-run). Then check with `npm run check:setup` from `orbit/`.
+
 Each file only needs to run once per project. If the app shows "table is missing",
 the matching file hasn't been run yet.
 

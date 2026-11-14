@@ -47,6 +47,21 @@ If the building list cannot be loaded, the campus map falls back to built-in app
 
 Run the files in `supabase/migrations/` in order in the Supabase SQL editor (see `supabase/README.md`). The last two matter for profiles: `…040000_avatars.sql` creates the profile-picture bucket and `…050000_profile_repair.sql` makes sure every account has a profile row it can edit.
 
+## Deploy
+
+The web build uses server output (the Concordia API routes run on the server), so host it on a Node-capable host. Expo's own is EAS Hosting:
+
+```bash
+cd orbit
+npm run check           # types, lint, tests
+npm run build:web       # production export to dist/ (what CI runs too)
+npx eas-cli login       # once
+npx eas-cli env:create  # add the four variables from .env.example (EXPO_PUBLIC_* as plain text, CONCORDIA_* as secret)
+npm run deploy          # export + eas deploy --prod
+```
+
+Before the first deploy, run `supabase/apply-pending.sql` in the Supabase SQL editor and confirm with `npm run check:setup`. Native builds: `npx eas-cli build --profile production --platform ios|android` (bundle id `com.nova.orbit`; `eas.json` has development, preview and production profiles). `npm run serve:web` previews the production build locally.
+
 ## Project layout
 
 ```
