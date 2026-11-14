@@ -43,6 +43,9 @@ export type ClassInput = {
   color: string | null;
 };
 
+/** The minimum needed to place a class in time. Friends shared as free/busy only expose just this. */
+export type RecurringSlot = Pick<ClassInput, 'days' | 'startTime' | 'endTime' | 'startDate' | 'endDate'>;
+
 /** A saved class event. */
 export type ClassEvent = ClassInput & {
   id: string;

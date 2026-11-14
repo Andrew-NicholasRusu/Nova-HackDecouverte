@@ -4,6 +4,8 @@ import { ActivityIndicator, StyleSheet, useColorScheme, View } from 'react-nativ
 import AppTabs from '@/components/app-tabs';
 import { Colors } from '@/constants/theme';
 import { AuthScreen } from '@/features/auth/auth-screen';
+import { OnboardingScreen } from '@/features/profile/onboarding-screen';
+import { useProfileState } from '@/features/profile/use-profile';
 import { AuthProvider, useAuth } from '@/providers/auth-provider';
 
 function AuthGate() {
@@ -18,7 +20,25 @@ function AuthGate() {
       </View>
     );
   }
-  return session ? <AppTabs /> : <AuthScreen />;
+  return session ? <ProfileGate /> : <AuthScreen />;
+}
+
+/** New students pick a username and campus before entering the app. */
+function ProfileGate() {
+  const { status, profile } = useProfileState();
+  const scheme = useColorScheme();
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+
+  if ((status === 'loading' || status === 'idle') && !profile) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator color={colors.accent} />
+      </View>
+    );
+  }
+  // If the profile can't be loaded (e.g. migration not run yet) don't lock the student out.
+  if (profile && !profile.username) return <OnboardingScreen profile={profile} />;
+  return <AppTabs />;
 }
 
 export default function RootLayout() {
