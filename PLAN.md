@@ -941,56 +941,7 @@ Core workflows work end-to-end.
 No critical authorization vulnerabilities remain.
 The application is usable on intended platforms.
 Documentation and deployment procedures are complete.
-10. DEVELOPMENT WORKFLOW AND TEAM RULES
-10.1 Git workflow
-Use GitHub and a consistent branching strategy.
-
-Branches:
-
-main: stable release.
-develop: integration.
-feature/name-of-feature: feature development.
-fix/name-of-fix: bug fixes.
-Commit conventions:
-
-feat:
-fix:
-refactor:
-test:
-docs:
-chore:
-All significant changes should go through pull requests.
-
-10.2 Feature development workflow
-Every feature must follow:
-
-Define the user story.
-Define acceptance criteria.
-Design the user interface.
-Identify database requirements.
-Define data contracts.
-Implement validation.
-Implement backend operations.
-Implement frontend.
-Integrate.
-Test.
-Review.
-Merge.
-Do not merge untested code directly into main.
-
-10.3 Code quality requirements
-Strict TypeScript.
-Consistent naming.
-Reusable components.
-Modular services.
-No unnecessary code duplication.
-No secrets committed to GitHub.
-No arbitrary database changes without migrations.
-No unexplained dependencies.
-No massive screen components containing all application logic.
-Meaningful error handling.
-Automated tests for important business logic.
-Clear documentation for non-obvious decisions.
+10. Dropped.
 11. MVP SCOPE CONTROL
 The first release must be ambitious in experience but disciplined in implementation.
 
@@ -1020,7 +971,6 @@ AI chatbot.
 Gamification.
 Complex recommendation engine.
 Microservices.
-Kubernetes infrastructure.
 These may be considered later if justified.
 
 12. QUALITY AND ACCEPTANCE STANDARDS
