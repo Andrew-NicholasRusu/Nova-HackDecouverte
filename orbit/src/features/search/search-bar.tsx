@@ -21,6 +21,7 @@ export function SearchBar() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const results = useSearch(query);
+  const [active, setActive] = useState(0);
   const input = useRef<ComponentRef<typeof TextInput>>(null);
 
   useEffect(() => {
@@ -88,7 +89,16 @@ export function SearchBar() {
         <TextInput
           ref={input}
           value={query}
-          onChangeText={setQuery}
+          onChangeText={(v) => {
+            setQuery(v);
+            setActive(0);
+          }}
+          onKeyPress={(e) => {
+            const k = e.nativeEvent.key;
+            if (k === 'ArrowDown') setActive((i) => Math.min(results.length - 1, i + 1));
+            else if (k === 'ArrowUp') setActive((i) => Math.max(0, i - 1));
+            else if (k === 'Enter' && results[active]) choose(results[active]);
+          }}
           placeholder="Search classes, rooms, friends, places"
           placeholderTextColor={FixedColors.shellMuted}
           accessibilityLabel="Search"
@@ -125,7 +135,7 @@ export function SearchBar() {
                     onPress={() => choose(r)}
                     style={(s) => [
                       styles.row,
-                      (s as { hovered?: boolean }).hovered && { backgroundColor: theme.accentTint },
+                      ((s as { hovered?: boolean }).hovered || results[active]?.id === r.id) && { backgroundColor: theme.accentTint },
                       s.pressed && { opacity: Opacity.pressed },
                     ]}>
                     <View style={[styles.icon, { backgroundColor: theme.accentTint }]}>

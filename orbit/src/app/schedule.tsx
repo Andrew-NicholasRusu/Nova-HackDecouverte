@@ -83,7 +83,6 @@ export default function ScheduleScreen() {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [importing, setImporting] = useState(false);
-  const [showAll, setShowAll] = useState(false);
   const [notice, setNotice] = useState<{ text: string; tone: 'success' | 'danger' } | null>(null);
 
   const events = schedule.events;
@@ -233,21 +232,6 @@ export default function ScheduleScreen() {
             })
           )}
 
-          <View style={styles.all}>
-            <ThemedText type="subtitle">All classes · {events.length}</ThemedText>
-            {(showAll ? events : events.slice(0, 4)).map((e) => (
-              <ClassBlock
-                key={e.id}
-                event={e}
-                status={conflictIds.has(e.id) ? 'conflict' : undefined}
-                detail={`${formatDays(e.days)} · ${formatDateLabel(e.startDate, 'short')} → ${formatDateLabel(e.endDate, 'short')}`}
-                onPress={() => setEditor({ mode: 'edit', event: e })}
-              />
-            ))}
-            {events.length > 4 ? (
-              <Button label={showAll ? 'Show fewer' : `Show all ${events.length} classes`} variant="secondary" icon={showAll ? 'expand-less' : 'expand-more'} onPress={() => setShowAll((v) => !v)} />
-            ) : null}
-          </View>
         </>
       ) : null}
 

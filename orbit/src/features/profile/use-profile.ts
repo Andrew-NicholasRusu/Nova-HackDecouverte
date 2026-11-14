@@ -83,32 +83,41 @@ export function useProfile() {
   return useProfileState().profile;
 }
 
-export async function updateProfile(edit: ProfileEdit) {
+/** Writes a partial profile; creates the row first if the account never got one. */
+async function saveProfile(patch: Partial<Omit<Profile, 'id'>>): Promise<Profile> {
   const userId = state.userId;
   if (!userId) throw new Error('Not signed in.');
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({
-      username: edit.username,
-      display_name: edit.display_name.trim(),
-      bio: edit.bio?.trim() || null,
-      preferred_campus: edit.preferred_campus,
-    })
-    .eq('id', userId)
-    .select(PROFILE_COLUMNS)
-    .single();
-  if (error) {
-    if (error.code === '23505') throw new Error('That username is taken. Try another one.');
-    throw new Error(error.message);
+  let res = await supabase.from('profiles').update(patch).eq('id', userId).select(PROFILE_COLUMNS);
+  if (!res.error && res.data.length === 0) {
+    res = await supabase.from('profiles').insert({ id: userId, ...patch }).select(PROFILE_COLUMNS);
   }
-  setState({ status: 'ready', profile: data as Profile, userId });
+  if (res.error) {
+    if (res.error.code === '23505') throw new Error('That username is taken. Try another one.');
+    if (res.error.code === '42501') {
+      throw new Error('Your profile row is missing. Run supabase/migrations/20261114050000_profile_repair.sql in the Supabase SQL editor.');
+    }
+    throw new Error(res.error.message);
+  }
+  const profile = res.data[0] as Profile;
+  setState({ status: 'ready', profile, userId });
+  return profile;
+}
+
+export async function updateProfile(edit: ProfileEdit) {
+  await saveProfile({
+    username: edit.username,
+    display_name: edit.display_name.trim(),
+    bio: edit.bio?.trim() || null,
+    preferred_campus: edit.preferred_campus,
+  });
 }
 
 /** Sets (or clears) the profile picture URL. The image itself is uploaded by `lib/avatar.ts`. */
 export async function setAvatarUrl(url: string | null) {
-  const userId = state.userId;
-  if (!userId) throw new Error('Not signed in.');
-  const { data, error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId).select(PROFILE_COLUMNS).single();
-  if (error) throw new Error(error.message);
-  setState({ status: 'ready', profile: data as Profile, userId });
+  await saveProfile({ avatar_url: url });
+}
+
+/** Try loading the profile again (after an error). */
+export function reloadProfile() {
+  if (state.userId) void load(state.userId);
 }

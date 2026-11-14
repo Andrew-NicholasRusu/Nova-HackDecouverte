@@ -14,7 +14,7 @@ import type { LiveLocation } from '../live/store';
 export type Place = { code: string; campus: string; name: string; latitude: number | null; longitude: number | null };
 
 export type Target = {
-  pathname: '/navigator' | '/live' | '/friends' | '/schedule';
+  pathname: '/navigator' | '/live' | '/friends' | '/schedule' | '/settings';
   params?: Record<string, string>;
 };
 

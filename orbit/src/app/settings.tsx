@@ -7,14 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { Icon } from '@/components/ui/icon';
-import { Pill } from '@/components/ui/pill';
 import { Screen } from '@/components/ui/screen';
 import { Elevation, FixedColors, Opacity, Radius, Spacing, TouchTarget } from '@/constants/theme';
 import { MAX_QUICK, QUICK_ACTIONS, useQuickActions } from '@/features/dashboard/quick-actions';
 import { SHARING_HELP, SHARING_LABEL } from '@/features/friends/describe';
 import { setSharingLevel, useFriends, type SharingLevel } from '@/features/friends/store';
-import { ProfileSheet } from '@/features/profile/profile-sheet';
-import { updateProfile, useProfile } from '@/features/profile/use-profile';
+import { ProfileFields } from '@/features/profile/profile-fields';
+import { reloadProfile, updateProfile, useProfileState, validateProfile, type Profile, type ProfileEdit } from '@/features/profile/use-profile';
+import { chooseAndUploadAvatar, removeAvatar } from '@/lib/avatar';
 import { useClassEvents } from '@/features/schedule/store';
 import { useLayout } from '@/hooks/use-layout';
 import { useTheme } from '@/hooks/use-theme';
@@ -22,10 +22,6 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth-provider';
 
 const CAMPUS_NAME = { SGW: 'Sir George Williams', LOY: 'Loyola' } as const;
-const CAMPUS_OPTIONS = [
-  { value: 'SGW', label: 'Sir George Williams' },
-  { value: 'LOY', label: 'Loyola' },
-] as const;
 const LEVELS: SharingLevel[] = ['private', 'availability', 'full'];
 const LEVEL_OPTIONS = LEVELS.map((value) => ({ value, label: SHARING_LABEL[value] }));
 
@@ -93,85 +89,142 @@ function QuickAccessSettings() {
 
 function ProfileCard() {
   const { session } = useAuth();
-  const profile = useProfile();
+  const state = useProfileState();
+  const profile = state.profile;
   const schedule = useClassEvents();
   const friends = useFriends();
   const { isMedium } = useLayout();
-  const [editing, setEditing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const name = profile?.display_name ?? 'Student';
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const name = profile?.display_name || profile?.username || 'Student';
 
-  async function setCampus(c: 'SGW' | 'LOY') {
-    if (!profile) return;
-    setError(null);
+  async function photo(action: 'change' | 'remove') {
+    if (!session) return;
+    setPhotoBusy(true);
+    setPhotoError(null);
     try {
-      await updateProfile({ username: profile.username, display_name: profile.display_name, bio: profile.bio, preferred_campus: c });
+      if (action === 'change') await chooseAndUploadAvatar(session.user.id);
+      else await removeAvatar(session.user.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not update your campus.');
+      setPhotoError(e instanceof Error ? e.message : 'Could not update your picture.');
     }
+    setPhotoBusy(false);
   }
 
   return (
-    <View style={styles.profile}>
-      <View style={styles.profileTop}>
-        <Avatar name={name} uri={profile?.avatar_url} size="xl" onDark />
-        <View style={styles.flex}>
-          <ThemedText type="subtitle" style={styles.onShell} numberOfLines={1}>
-            {name}
-          </ThemedText>
-          <ThemedText type="small" style={styles.onShellMuted} numberOfLines={1}>
-            {profile?.username ? `@${profile.username}` : session?.user.email}
-          </ThemedText>
+    <>
+      <View style={styles.profile}>
+        <View style={[styles.profileTop, !isMedium && styles.profileTopStack]}>
+          <Avatar name={name} uri={profile?.avatar_url} size="xl" onDark />
+          <View style={styles.flex}>
+            <ThemedText type="subtitle" style={styles.onShell} numberOfLines={1}>
+              {name}
+            </ThemedText>
+            <ThemedText type="small" style={styles.onShellMuted} numberOfLines={1}>
+              {profile?.username ? `@${profile.username}` : session?.user.email}
+            </ThemedText>
+            <View style={styles.photoActions}>
+              <Button label={photoBusy ? 'Uploading…' : profile?.avatar_url ? 'Change photo' : 'Add a photo'} icon="photo-camera" variant="secondary" disabled={photoBusy} onPress={() => photo('change')} />
+              {profile?.avatar_url ? <Button label="Remove" variant="ghost" disabled={photoBusy} onPress={() => photo('remove')} /> : null}
+            </View>
+          </View>
         </View>
-        {isMedium ? <Button label="Edit" icon="edit" variant="secondary" disabled={!profile} onPress={() => setEditing(true)} /> : null}
+        {photoError ? (
+          <ThemedText type="small" themeColor="danger" accessibilityRole="alert">
+            {photoError}
+          </ThemedText>
+        ) : null}
+        <View style={styles.stats}>
+          <View style={styles.stat}>
+            <ThemedText type="stat" style={styles.onShell}>
+              {schedule.events.length}
+            </ThemedText>
+            <ThemedText type="caption" style={styles.onShellMuted}>
+              classes
+            </ThemedText>
+          </View>
+          <View style={styles.stat}>
+            <ThemedText type="stat" style={styles.onShell}>
+              {friends.friends.length}
+            </ThemedText>
+            <ThemedText type="caption" style={styles.onShellMuted}>
+              friends
+            </ThemedText>
+          </View>
+          <View style={styles.stat}>
+            <ThemedText type="smallBold" style={styles.gold}>
+              {profile?.preferred_campus ? CAMPUS_NAME[profile.preferred_campus] : 'No campus yet'}
+            </ThemedText>
+            <ThemedText type="caption" style={styles.onShellMuted}>
+              home campus
+            </ThemedText>
+          </View>
+        </View>
       </View>
-      {!isMedium ? <Button label="Edit profile" icon="edit" variant="secondary" fullWidth disabled={!profile} onPress={() => setEditing(true)} /> : null}
-      {profile?.bio ? (
-        <ThemedText type="small" style={styles.onShellMuted}>
-          {profile.bio}
+
+      {state.status === 'error' ? (
+        <Card>
+          <ThemedText type="smallBold" themeColor="danger">
+            Could not load your profile
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {state.error}
+          </ThemedText>
+          <Button label="Try again" icon="refresh" variant="secondary" onPress={reloadProfile} />
+        </Card>
+      ) : null}
+      <ProfileForm key={profile?.id ?? 'new'} profile={profile} />
+    </>
+  );
+}
+
+/** Inline profile editor: always available, saves with a visible result. */
+function ProfileForm({ profile }: { profile: Profile | null }) {
+  const [value, setValue] = useState<ProfileEdit>({
+    display_name: profile?.display_name ?? '',
+    username: profile?.username ?? null,
+    bio: profile?.bio ?? null,
+    preferred_campus: profile?.preferred_campus ?? null,
+  });
+  const [errors, setErrors] = useState<ReturnType<typeof validateProfile>>({});
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const dirty =
+    value.display_name !== (profile?.display_name ?? '') ||
+    value.username !== (profile?.username ?? null) ||
+    (value.bio ?? '') !== (profile?.bio ?? '') ||
+    value.preferred_campus !== (profile?.preferred_campus ?? null);
+
+  async function save() {
+    const found = validateProfile(value);
+    setErrors(found);
+    setMessage(null);
+    if (Object.keys(found).length) return;
+    setBusy(true);
+    try {
+      await updateProfile(value);
+      setMessage({ text: 'Profile saved.', ok: true });
+    } catch (e) {
+      setMessage({ text: e instanceof Error ? e.message : 'Could not save your profile.', ok: false });
+    }
+    setBusy(false);
+  }
+
+  return (
+    <Card>
+      <CardHeader icon="person" title="Your profile" />
+      <ProfileFields value={value} onChange={(v) => { setValue(v); setMessage(null); }} errors={errors} showBio />
+      <ThemedText type="caption" themeColor="textSecondary" style={styles.right}>
+        {(value.bio ?? '').length}/280
+      </ThemedText>
+      {message ? (
+        <ThemedText type="small" themeColor={message.ok ? 'success' : 'danger'} accessibilityRole={message.ok ? undefined : 'alert'} accessibilityLiveRegion="polite">
+          {message.text}
         </ThemedText>
       ) : null}
-      <View style={styles.stats}>
-        <View style={styles.stat}>
-          <ThemedText type="stat" style={styles.onShell}>
-            {schedule.events.length}
-          </ThemedText>
-          <ThemedText type="caption" style={styles.onShellMuted}>
-            classes
-          </ThemedText>
-        </View>
-        <View style={styles.stat}>
-          <ThemedText type="stat" style={styles.onShell}>
-            {friends.friends.length}
-          </ThemedText>
-          <ThemedText type="caption" style={styles.onShellMuted}>
-            friends
-          </ThemedText>
-        </View>
-        <View style={styles.stat}>
-          <ThemedText type="smallBold" style={styles.gold}>
-            {profile?.preferred_campus ? CAMPUS_NAME[profile.preferred_campus] : 'No campus yet'}
-          </ThemedText>
-          <ThemedText type="caption" style={styles.onShellMuted}>
-            home campus
-          </ThemedText>
-        </View>
-      </View>
-      {profile ? (
-        <View style={styles.campus}>
-          <ThemedText type="caption" style={styles.onShellMuted}>
-            Switch campus: Map, Campus Live and your plan follow it.
-          </ThemedText>
-          <ChoiceChips label="Home campus" options={CAMPUS_OPTIONS} value={profile.preferred_campus ?? undefined} onChange={setCampus} />
-        </View>
-      ) : null}
-      {error ? (
-        <ThemedText type="small" themeColor="danger" accessibilityRole="alert">
-          {error}
-        </ThemedText>
-      ) : null}
-      {editing && profile ? <ProfileSheet profile={profile} onClose={() => setEditing(false)} /> : null}
-    </View>
+      <Button label={busy ? 'Saving…' : 'Save changes'} icon="check" disabled={busy || !dirty} onPress={save} />
+    </Card>
   );
 }
 
@@ -224,15 +277,9 @@ function PrivacyCard() {
 function AboutCard() {
   return (
     <Card>
-      <CardHeader icon="info" title="About Orbit" />
-      <ThemedText type="small" themeColor="textSecondary">
-        Buildings and floor plans come from Concordia Open Data. Lines and seats in Campus Live are reported by students, not official Concordia
-        information. Your schedule is private to you unless you share it.
+      <ThemedText type="caption" themeColor="textSecondary">
+        Buildings and floor plans: Concordia Open Data. Lines and seats: reported by students, not official. Your schedule stays private unless you share it.
       </ThemedText>
-      <View style={styles.pills}>
-        <Pill label="Concordia Open Data" />
-        <Pill label="Student reports" />
-      </View>
       <Button label="Sign out" variant="secondary" icon="logout" onPress={() => supabase.auth.signOut()} />
     </Card>
   );
@@ -262,7 +309,10 @@ const styles = StyleSheet.create({
   col: { gap: Spacing.four },
   flex: { flex: 1 },
   profile: { backgroundColor: FixedColors.shell, borderRadius: Radius.xl, padding: Spacing.four, gap: Spacing.three, borderWidth: 1, borderColor: FixedColors.shellBorder, ...Elevation.raised },
-  profileTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  profileTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },
+  profileTopStack: { flexDirection: 'column', alignItems: 'flex-start' },
+  photoActions: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap', marginTop: Spacing.two },
+  right: { textAlign: 'right' },
   onShell: { color: FixedColors.shellText },
   onShellMuted: { color: FixedColors.shellMuted },
   gold: { color: FixedColors.gold },

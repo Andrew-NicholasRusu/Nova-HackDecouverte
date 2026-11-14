@@ -1,42 +1,51 @@
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
-import { ThemedText } from '@/components/themed-text';
-import { MOLSON_PHOTO } from '@/constants/floorplans';
-import { Radius, Size } from '@/constants/theme';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Size, Spacing } from '@/constants/theme';
+import { useBrain } from '@/features/brain/use-brain';
+import { CampusMap } from '@/features/navigator/campus-map';
+import { useBuildings } from '@/features/navigator/use-buildings';
+import { useProfile } from '@/features/profile/use-profile';
 
-
-/** Entry to the Map: a real building preview (Molson floor plans) and the primary room-finding action. */
+/** Campus overview: your next class building, where you are and the walk between them. */
 export function MapCard() {
+  const data = useBuildings();
+  const plan = useBrain();
+  const profile = useProfile();
+  const campus = plan.nextBuilding?.campus ?? plan.here?.campus ?? profile?.preferred_campus ?? 'SGW';
+
   return (
-    <Card style={styles.card}>
-      <CardHeader
-        icon="location-on"
-        title="Campus Map"
-        actionLabel="Open Map"
-        onAction={() => router.push('/navigator')}
-      />
-      <View style={styles.preview}>
-        <Image
-          source={MOLSON_PHOTO}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          contentPosition="center"
-          accessibilityLabel="Molson Building, Sir George Williams campus"
-        />
-      </View>
+    <Card>
+      <CardHeader icon="location-on" title="Campus Map" actionLabel="Open Map" onAction={() => router.push('/navigator')} />
+      {data.status === 'loading' ? (
+        <Skeleton height={Size.mapPreview} />
+      ) : data.status === 'error' ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          The building list could not load. Floor plans still work offline.
+        </ThemedText>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open the campus map"
+          onPress={() => router.push('/navigator')}
+          style={styles.map}>
+          <View pointerEvents="none">
+            <CampusMap buildings={data.buildings} campus={campus} height={Size.mapPreview} next={plan.nextBuilding?.code} here={plan.here?.code} />
+          </View>
+        </Pressable>
+      )}
       <ThemedText type="small" themeColor="textSecondary">
-        Lost in the Molson Building? Open the floor plans and search any room by number.
+        {plan.next && plan.walkToNext !== null
+          ? `${plan.next.event.courseCode} is in ${plan.nextBuilding?.code}, ${plan.walkToNext} min walk from ${plan.here?.code}.`
+          : 'Search any building or room, with floor plans and step-by-step directions.'}
       </ThemedText>
       <Button label="Find a room" icon="search" onPress={() => router.push('/navigator')} />
     </Card>
   );
 }
 
-const styles = StyleSheet.create({
-  card: { flexGrow: 1 },
-  preview: { height: Size.mapPreview, borderRadius: Radius.lg, overflow: 'hidden' },
-});
+const styles = StyleSheet.create({ map: { gap: Spacing.two } });

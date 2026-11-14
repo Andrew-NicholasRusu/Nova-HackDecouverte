@@ -58,13 +58,10 @@ export default function LiveScreen() {
 
   return (
     <Screen onRefresh={loadLive} title="Campus Live" subtitle="Real-time lines and seats, from students on campus">
-      <Card style={styles.note}>
-        <ThemedText type="small" themeColor="textSecondary">
-          {reported > 0 ? `${reported} student reports in the last ${REPORT_MAX_AGE_MIN} minutes. ` : `No reports in the last ${REPORT_MAX_AGE_MIN} minutes. `}
-          Newer reports count more, one vote per student, and confidence rises when several agree. Walking times start from{' '}
-          {plan.here ? `${plan.here.code}, where your classes are` : 'your next class building when your schedule has one'}.
-        </ThemedText>
-      </Card>
+      <ThemedText type="caption" themeColor="textSecondary">
+        {reported > 0 ? `${reported} student ${reported === 1 ? 'report' : 'reports'} in the last ${REPORT_MAX_AGE_MIN} min` : `No reports in the last ${REPORT_MAX_AGE_MIN} min`}
+        {plan.here ? ` · walking times from ${plan.here.code}` : ''}
+      </ThemedText>
 
       <View style={styles.chips}>
         <Chip label="SGW" selected={selected === 'SGW'} onPress={() => setCampus('SGW')} />
@@ -101,7 +98,6 @@ export default function LiveScreen() {
 }
 
 const styles = StyleSheet.create({
-  note: { gap: Spacing.one },
   chips: { flexDirection: 'row', gap: Spacing.two },
   section: { gap: Spacing.three },
   grid: { gap: Spacing.three },

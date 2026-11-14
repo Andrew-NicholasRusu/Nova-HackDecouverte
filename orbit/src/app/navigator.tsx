@@ -17,7 +17,9 @@ import { EmptyState, ErrorState } from '@/components/ui/state-views';
 import { Floor, MOLSON_FLOORS } from '@/constants/floorplans';
 import { Elevation, FixedColors, Opacity, Radius, Size, Spacing, TouchTarget, Typography } from '@/constants/theme';
 import { useBrain } from '@/features/brain/use-brain';
+import { CampusMap } from '@/features/navigator/campus-map';
 import { useBuildings, type Building } from '@/features/navigator/use-buildings';
+import { useProfile } from '@/features/profile/use-profile';
 import { useLayout } from '@/hooks/use-layout';
 import { useTheme } from '@/hooks/use-theme';
 import { directionsUrl, walkMinutes } from '@/lib/geo';
@@ -109,6 +111,7 @@ export default function NavigatorScreen() {
   const { isWide, isMedium } = useLayout();
   const data = useBuildings();
   const plan = useBrain();
+  const profile = useProfile();
 
   const [floor, setFloor] = useState<Floor | null>(null);
   const [focusRoom, setFocusRoom] = useState<string | undefined>(undefined);
@@ -160,6 +163,8 @@ export default function NavigatorScreen() {
     );
   }, [data, campus, q, selected]);
 
+  const mapCampus = campus === 'ALL' ? (plan.nextBuilding?.campus ?? profile?.preferred_campus ?? 'SGW') : campus;
+  const selectedBuilding = data.status === 'ready' ? data.buildings.find((b) => b.code === selected && b.campus === mapCampus) : undefined;
   const nextBuilding = plan.next?.event.buildingCode ?? '';
   const nextRoomLabel = plan.next ? `MB-${plan.next.event.room}` : '';
   const nextRoom = nextBuilding === 'MB' ? allRooms.find((r) => r.label === nextRoomLabel) : undefined;
@@ -255,7 +260,7 @@ export default function NavigatorScreen() {
       <View style={styles.searchWrap}>
         <View style={[styles.search, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
           <Icon name="search" size="lg" color="textSecondary" />
-          <SearchInput value={query} onChange={setQuery} color={theme.text} placeholderColor={theme.textSecondary} />
+          <SearchInput value={query} onChange={setQuery} onSubmit={() => (matches.rooms[0] ? openRoom(matches.rooms[0].label) : matches.buildings[0] ? (setSelected(matches.buildings[0].code), setCampus('ALL'), setQuery('')) : undefined)} color={theme.text} placeholderColor={theme.textSecondary} />
           {query ? (
             <Pressable accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')} style={styles.clear}>
               <Icon name="close" size="md" color="textSecondary" />
@@ -307,6 +312,35 @@ export default function NavigatorScreen() {
         <View style={isWide ? styles.flex1 : undefined}>{nextStop}</View>
       </View>
 
+      {data.status === 'ready' ? (
+        <Card>
+          <View style={styles.nextHead}>
+            <Icon name="map" size="lg" color="accentLink" />
+            <ThemedText type="heading" accessibilityRole="header">
+              {CAMPUS_NAMES[mapCampus] ?? mapCampus} campus
+            </ThemedText>
+          </View>
+          <CampusMap buildings={data.buildings} campus={mapCampus} height={isWide ? Size.campusMapWide : Size.campusMap} selected={selected} next={nextBuilding} here={plan.here?.code} onSelect={(code) => setSelected(selected === code ? null : code)} />
+          {selectedBuilding ? (
+            <View style={styles.callout}>
+              <View style={styles.flex}>
+                <ThemedText type="smallBold">
+                  {selectedBuilding.code} · {selectedBuilding.longName || selectedBuilding.name}
+                </ThemedText>
+                <ThemedText type="caption" themeColor="textSecondary">
+                  {selectedBuilding.address}
+                </ThemedText>
+              </View>
+              {hasCoords(selectedBuilding) ? <Button label="Directions" icon="near-me" onPress={() => Linking.openURL(directionsUrl(selectedBuilding))} /> : null}
+            </View>
+          ) : (
+            <ThemedText type="caption" themeColor="textSecondary">
+              Tap a pin to see the building. Gold is your next class, green is where you are.
+            </ThemedText>
+          )}
+        </Card>
+      ) : null}
+
       <View style={styles.dirHead}>
         <ThemedText type="subtitle" accessibilityRole="header">
           Building directory
@@ -344,11 +378,12 @@ export default function NavigatorScreen() {
   );
 }
 
-function SearchInput({ value, onChange, color, placeholderColor }: { value: string; onChange: (v: string) => void; color: string; placeholderColor: string }) {
+function SearchInput({ value, onChange, onSubmit, color, placeholderColor }: { value: string; onChange: (v: string) => void; onSubmit: () => void; color: string; placeholderColor: string }) {
   return (
     <TextInput
       value={value}
       onChangeText={onChange}
+      onSubmitEditing={onSubmit}
       placeholder="Search a building, address or room, e.g. EV, Guy, 1.130"
       placeholderTextColor={placeholderColor}
       accessibilityLabel="Search buildings and rooms"
@@ -381,6 +416,7 @@ const styles = StyleSheet.create({
   floors: { gap: Spacing.two, marginTop: Spacing.two },
   floorTile: { minHeight: TouchTarget + Spacing.three, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.three, borderRadius: Radius.lg, backgroundColor: FixedColors.shellRaised, borderWidth: 1, borderColor: FixedColors.shellBorder },
   next: { gap: Spacing.two },
+  callout: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, flexWrap: 'wrap' },
   nextHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   nextActions: { gap: Spacing.two, marginTop: Spacing.two },
   dirHead: { gap: Spacing.three },

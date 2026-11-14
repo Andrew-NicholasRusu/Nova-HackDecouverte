@@ -1,5 +1,7 @@
 import navmesh from '@/assets/floor_plan/navmesh/mb.json';
 
+import { buildGraph, planRoute, type Route } from './route';
+
 export type Room = {
   /** Room code as used in the floor SVG labels, e.g. "1.130". */
   code: string;
@@ -51,4 +53,18 @@ export function getRoomEdges(room: Room): Edge[] {
     (l) => l.data.type === 'door_to_hallway' && doorIds.has(l.fromId),
   );
   return [...doors, ...hallways].flatMap((l) => toEdge(l.fromId, l.toId) ?? []);
+}
+
+
+const graph = buildGraph(navmesh.nodes, navmesh.links);
+
+/** The building's street entrance, used as the default starting point for directions. */
+export const ENTRANCE: Room = (() => {
+  const poi = navmesh.poiIndex.building_entry_exit[0];
+  return { code: 'ENTRANCE', label: 'Main entrance', floor: String(poi.floor), nodeId: poi.nodeId, x: poi.x, y: poi.y };
+})();
+
+/** Step-by-step route between two rooms (or the entrance); null when no path exists. */
+export function routeBetween(from: Room, to: Room, accessibleOnly: boolean): Route | null {
+  return planRoute(graph, from.nodeId, to.nodeId, accessibleOnly);
 }

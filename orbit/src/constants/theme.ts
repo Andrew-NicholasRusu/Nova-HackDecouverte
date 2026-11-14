@@ -53,6 +53,8 @@ export const FixedColors = {
   black: '#000000',
   planSurface: '#FFFFFF',
   roomHighlight: '#D32F2F',
+  routeStart: '#2E7D4F',
+  routeLine: '#912338',
   /** App shell (sidebar) stays navy in both themes. */
   shell: '#0F1320',
   shellText: '#F2F4F8',
@@ -197,6 +199,11 @@ export const Size = {
   searchOpen: 560,
   pasteHeight: 140,
   hourHeight: 56,
+  pinLabelWidth: 88,
+  campusMap: 260,
+  campusMapWide: 360,
+  planWide: 900,
+  planSidebar: 380,
   stageViewer: 260,
   stageInfoMin: 240,
 } as const;

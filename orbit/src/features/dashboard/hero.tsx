@@ -2,27 +2,25 @@ import { Image } from 'expo-image';
 
 import { HERO_FOCUS, HERO_PHOTO, HERO_PHOTO_ALT } from '@/constants/images';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { NotificationBell } from '@/features/notifications/notification-bell';
+import { AccountMenu } from '@/features/profile/account-menu';
 import { SearchBar } from '@/features/search/search-bar';
 
 import { ThemedText } from '@/components/themed-text';
-import { Avatar } from '@/components/ui/avatar';
-import { Icon } from '@/components/ui/icon';
 import {
   BadgeSize,
   FixedColors,
   HeroHeight,
   Motion,
-  Opacity,
   Radius,
   Spacing,
   TouchTarget,
 } from '@/constants/theme';
 import { useLayout } from '@/hooks/use-layout';
 
-type Props = { name?: string; fullName: string; avatarUrl?: string | null; unread: number };
+type Props = { name?: string };
 
 function greeting(date = new Date()) {
   const h = date.getHours();
@@ -33,7 +31,7 @@ function greeting(date = new Date()) {
 }
 
 /** Photo banner: greeting, tagline, search entry, notifications and profile. */
-export function Hero({ name, fullName, avatarUrl, unread }: Props) {
+export function Hero({ name }: Props) {
   const { isWide, isMedium } = useLayout();
   const height = isWide ? HeroHeight.wide : HeroHeight.compact;
 
@@ -57,21 +55,8 @@ export function Hero({ name, fullName, avatarUrl, unread }: Props) {
       </View>
       <View style={styles.top}>
         <SearchBar />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={unread ? `Notifications, ${unread} new` : 'Notifications'}
-          onPress={() => router.push('/live')}
-          style={({ pressed }) => [styles.iconButton, pressed && { opacity: Opacity.pressed }]}>
-          <Icon name="notifications" size="lg" color={FixedColors.white} />
-          {unread > 0 ? <View style={styles.badge} /> : null}
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open settings"
-          onPress={() => router.push('/settings')}
-          style={({ pressed }) => pressed && { opacity: Opacity.pressed }}>
-          <Avatar name={fullName} uri={avatarUrl} onDark />
-        </Pressable>
+        <NotificationBell />
+        <AccountMenu />
       </View>
       <View style={styles.copy}>
         <ThemedText
@@ -97,7 +82,8 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
   },
   clip: { ...StyleSheet.absoluteFill, borderRadius: Radius.xl, overflow: 'hidden', backgroundColor: FixedColors.shell },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: Spacing.three },
+  // Above the greeting block: the search dropdown lives in this row and must win hit-testing.
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: Spacing.three, zIndex: 30 },
   iconButton: {
     width: TouchTarget,
     height: TouchTarget,

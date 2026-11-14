@@ -102,17 +102,6 @@ export function CustomTabList({ wide, ...props }: TabListProps & { wide: boolean
         </ThemedText>
       </View>
       <View style={styles.nav}>{props.children}</View>
-      <View style={styles.footer}>
-        <View style={styles.school}>
-          <View style={styles.goldRule} />
-          <ThemedText type="smallBold" style={{ color: FixedColors.shellText }}>
-            Concordia University
-          </ThemedText>
-          <ThemedText type="caption" style={{ color: FixedColors.shellMuted }}>
-            Montréal
-          </ThemedText>
-        </View>
-      </View>
     </View>
   );
 }
