@@ -276,7 +276,8 @@ export function FloorPlanModal({ floor, onSelect, onClose, focusRoom }: Props) {
           {wide ? <View style={[styles.sidebar, { backgroundColor: theme.backgroundElement, borderRightColor: theme.border }]}>{panel}</View> : null}
 
           <View style={styles.planArea}>
-            <View style={styles.plan} onLayout={(e) => setPlanBox(e.nativeEvent.layout)}>
+            <View style={styles.plan}>
+              <View style={styles.paper} onLayout={(e) => setPlanBox(e.nativeEvent.layout)}>
               {floor && (
                 <ScrollView horizontal contentContainerStyle={{ width: Math.max(canvas, planBox.width), height: Math.max(canvas, planBox.height), alignItems: 'center', justifyContent: 'center' }} showsHorizontalScrollIndicator={zoom > 1}>
                   <ScrollView nestedScrollEnabled contentContainerStyle={{ width: Math.max(canvas, planBox.width), height: Math.max(canvas, planBox.height), alignItems: 'center', justifyContent: 'center' }} showsVerticalScrollIndicator={zoom > 1}>
@@ -292,7 +293,7 @@ export function FloorPlanModal({ floor, onSelect, onClose, focusRoom }: Props) {
                             accessibilityRole="button"
                             accessibilityLabel={`Room ${target.label}. Get directions`}
                             onPress={() => choose(target)}
-                            style={[styles.region, { left: `${(r.x / 1024) * 100}%`, top: `${(r.y / 1024) * 100}%`, width: `${(r.width / 1024) * 100}%`, height: `${(r.height / 1024) * 100}%` }]}
+                            style={(st) => [styles.region, (st as { hovered?: boolean }).hovered && { backgroundColor: theme.accentTint }, { left: `${(r.x / 1024) * 100}%`, top: `${(r.y / 1024) * 100}%`, width: `${(r.width / 1024) * 100}%`, height: `${(r.height / 1024) * 100}%` }]}
                           />
                         );
                       })}
@@ -300,6 +301,7 @@ export function FloorPlanModal({ floor, onSelect, onClose, focusRoom }: Props) {
                   </ScrollView>
                 </ScrollView>
               )}
+              </View>
 
               <View style={styles.floorBar} accessibilityRole="tablist">
                 {MOLSON_FLOORS.map((f) => {
@@ -383,14 +385,15 @@ const styles = StyleSheet.create({
   step: { minHeight: TouchTarget + Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.two, borderRadius: Radius.md, borderWidth: 2 },
   stepIcon: { width: TouchTarget - Spacing.two, height: TouchTarget - Spacing.two, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
   planArea: { flex: 1 },
-  plan: { flex: 1, backgroundColor: FixedColors.planSurface },
+  plan: { flex: 1, backgroundColor: FixedColors.shell, padding: Spacing.three },
+  paper: { flex: 1, backgroundColor: FixedColors.planSurface, borderRadius: Radius.xl, overflow: 'hidden', ...Elevation.raised },
   region: { position: 'absolute', cursor: 'pointer' },
-  floorBar: { position: 'absolute', top: Spacing.three, left: Spacing.three, flexDirection: 'row', gap: Spacing.two },
+  floorBar: { position: 'absolute', top: Spacing.five, left: Spacing.five, flexDirection: 'row', gap: Spacing.two },
   floorTab: { minHeight: TouchTarget, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, borderWidth: 2, alignItems: 'center', justifyContent: 'center', ...Elevation.card },
   onShell: { color: FixedColors.shellText },
-  zoom: { position: 'absolute', right: Spacing.three, bottom: Spacing.three, gap: Spacing.two },
+  zoom: { position: 'absolute', right: Spacing.five, bottom: Spacing.five, gap: Spacing.two },
   zoomBtn: { width: TouchTarget, height: TouchTarget, borderRadius: Radius.pill, backgroundColor: FixedColors.shell, alignItems: 'center', justifyContent: 'center', ...Elevation.card },
-  legend: { position: 'absolute', left: Spacing.three, bottom: Spacing.three, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, backgroundColor: FixedColors.shell, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill },
+  legend: { position: 'absolute', left: Spacing.five, bottom: Spacing.five, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, backgroundColor: FixedColors.shell, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill },
   legendDot: { width: Spacing.two + Spacing.half, height: Spacing.two + Spacing.half, borderRadius: Radius.pill },
-  backFloat: { position: 'absolute', top: Spacing.three, right: Spacing.three, width: TouchTarget, height: TouchTarget, borderRadius: Radius.pill, backgroundColor: FixedColors.shell, alignItems: 'center', justifyContent: 'center', ...Elevation.card },
+  backFloat: { position: 'absolute', top: Spacing.five, right: Spacing.five, width: TouchTarget, height: TouchTarget, borderRadius: Radius.pill, backgroundColor: FixedColors.shell, alignItems: 'center', justifyContent: 'center', ...Elevation.card },
 });

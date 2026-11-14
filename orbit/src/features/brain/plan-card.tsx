@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Elevation, FixedColors, Opacity, Radius, Spacing, TouchTarget } from '@/constants/theme';
 import { useLayout } from '@/hooks/use-layout';
 
-import type { Plan, Suggestion } from './plan';
+import type { Suggestion } from './plan';
 import { useBrain } from './use-brain';
 
 const ICON: Record<Suggestion['kind'], IconName> = {
@@ -25,13 +25,6 @@ const TONE_COLOR = {
   neutral: FixedColors.shellMuted,
 } as const;
 
-const STATE_LABEL: Record<Plan['state'], string> = {
-  empty: 'Get started',
-  'in-class': 'In class',
-  free: 'Free now',
-  done: 'Done for today',
-};
-
 /**
  * The dashboard brain: one plan across Schedule, Map, Campus Live and Friends. Every suggestion
  * opens the module that can act on it, focused on the right place, class or person.
@@ -44,12 +37,6 @@ export function PlanCard() {
     <View style={styles.card} accessibilityRole="summary" accessibilityLabel={`Your plan. ${plan.headline}`}>
       <View style={[styles.head, isMedium && styles.headRow]}>
         <View style={styles.headText}>
-          <View style={styles.state}>
-            <View style={[styles.dot, { backgroundColor: plan.state === 'free' ? FixedColors.successOnShell : FixedColors.gold }]} />
-            <ThemedText type="caption" style={styles.stateText}>
-              {STATE_LABEL[plan.state]}
-            </ThemedText>
-          </View>
           <ThemedText type="displaySmall" style={styles.headline} accessibilityRole="header">
             {plan.headline}
           </ThemedText>
@@ -125,9 +112,6 @@ const styles = StyleSheet.create({
   head: { gap: Spacing.three },
   headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headText: { gap: Spacing.one, flexShrink: 1 },
-  state: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  dot: { width: Spacing.two, height: Spacing.two, borderRadius: Radius.pill },
-  stateText: { color: FixedColors.gold, textTransform: 'uppercase', letterSpacing: 1.5 },
   headline: { color: FixedColors.shellText },
   sub: { color: FixedColors.shellMuted },
   tiles: { gap: Spacing.two },

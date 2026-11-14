@@ -199,12 +199,11 @@ export const Size = {
   searchOpen: 560,
   pasteHeight: 140,
   hourHeight: 56,
-  pinLabelWidth: 88,
   campusMap: 260,
   campusMapWide: 360,
   planWide: 900,
   planSidebar: 380,
-  stageViewer: 260,
+  stageViewer: 340,
   stageInfoMin: 240,
 } as const;
 

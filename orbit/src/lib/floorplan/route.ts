@@ -1,5 +1,5 @@
 /**
- * Indoor routing on a navmesh: shortest path (Dijkstra) plus plain-language steps with
+ * Indoor routing on a navmesh: shortest path (A*) plus plain-language steps with
  * landmarks. Pure, so it is unit-tested without the app.
  */
 
@@ -10,6 +10,8 @@ export type Graph = {
   nodes: Map<string, GraphNode>;
   /** Undirected adjacency: the navmesh lists most corridors in one direction only. */
   adj: Map<string, { to: string; link: GraphLink }[]>;
+  /** Heuristic scale in (0, 1]: min link weight / straight-line length, keeps A* admissible. */
+  hScale: number;
 };
 
 export type RouteStep = {
@@ -42,6 +44,7 @@ export function buildGraph(
   for (const n of nodes) map.set(n.id, { id: n.id, x: n.data.x, y: n.data.y, floor: n.data.floor, type: n.data.type, label: n.data.label ?? '' });
   const adj = new Map<string, { to: string; link: GraphLink }[]>();
   const add = (a: string, b: string, link: GraphLink) => adj.set(a, [...(adj.get(a) ?? []), { to: b, link }]);
+  let hScale = 1;
   for (const l of links) {
     const a = map.get(l.fromId);
     const b = map.get(l.toId);
@@ -54,32 +57,39 @@ export function buildGraph(
       weight: (l.data.weight && l.data.weight > 0 ? l.data.weight : euclid) + (VERTICAL_COST[l.data.type] ?? 0),
       accessible: l.data.accessible !== false,
     };
+    if (euclid > 0) hScale = Math.min(hScale, link.weight / euclid);
     add(l.fromId, l.toId, link);
     add(l.toId, l.fromId, link);
   }
-  return { nodes: map, adj };
+  return { nodes: map, adj, hScale };
 }
 
 export function findPath(graph: Graph, from: string, to: string, accessibleOnly = false): { ids: string[]; length: number } | null {
   if (!graph.nodes.has(from) || !graph.nodes.has(to)) return null;
+  const goal = graph.nodes.get(to)!;
+  const h = (id: string) => {
+    const n = graph.nodes.get(id)!;
+    return Math.hypot(n.x - goal.x, n.y - goal.y) * graph.hScale;
+  };
   const dist = new Map<string, number>([[from, 0]]);
   const prev = new Map<string, string>();
   const open = new Set<string>([from]);
   while (open.size) {
     let cur = '';
-    let best = Infinity;
+    let bestF = Infinity;
     for (const id of open) {
-      const d = dist.get(id)!;
-      if (d < best) {
-        best = d;
+      const f = dist.get(id)! + h(id);
+      if (f < bestF) {
+        bestF = f;
         cur = id;
       }
     }
     open.delete(cur);
     if (cur === to) break;
+    const base = dist.get(cur)!;
     for (const { to: next, link } of graph.adj.get(cur) ?? []) {
       if (accessibleOnly && (!link.accessible || link.type === 'stair')) continue;
-      const nd = best + link.weight;
+      const nd = base + link.weight;
       if (nd < (dist.get(next) ?? Infinity)) {
         dist.set(next, nd);
         prev.set(next, cur);

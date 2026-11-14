@@ -14,6 +14,7 @@ import { ClassBlock } from '@/features/schedule/class-block';
 import { ClassForm } from '@/features/schedule/class-form';
 import {
   calculateFreePeriods,
+  calculateNextClass,
   calculateScheduleConflicts,
   occurrencesOnDate,
   type Occurrence,
@@ -86,6 +87,7 @@ export default function ScheduleScreen() {
   const [notice, setNotice] = useState<{ text: string; tone: 'success' | 'danger' } | null>(null);
 
   const events = schedule.events;
+  const nextOcc = calculateNextClass(events, now).next;
   const conflicts = useMemo(() => calculateScheduleConflicts(events), [events]);
   const conflictIds = useMemo(() => new Set(conflicts.flatMap((c) => [c.a.id, c.b.id])), [conflicts]);
 
@@ -163,6 +165,16 @@ export default function ScheduleScreen() {
           </View>
 
           <ThemedText type="subtitle">{rangeLabel}</ThemedText>
+
+          {view === 'week' && [0, 1, 2, 3, 4, 5, 6].every((i) => occurrencesOnDate(events, addDays(weekStart, i)).length === 0) ? (
+            <Card>
+              <ThemedText type="small" themeColor="textSecondary">
+                No classes this week.
+                {nextOcc ? ` Your next class is ${nextOcc.event.courseCode} on ${formatDateLabel(toLocalDate(nextOcc.start))}.` : ''}
+              </ThemedText>
+              {nextOcc ? <Button label="Go to that week" variant="secondary" iconEnd="arrow-forward" onPress={() => setDate(toLocalDate(nextOcc.start))} /> : null}
+            </Card>
+          ) : null}
 
           {view === 'day' ? (
             (() => {

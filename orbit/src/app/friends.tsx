@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -31,6 +31,7 @@ import { toLocalDate } from '@/features/schedule/model';
 import { useClassEvents } from '@/features/schedule/store';
 import { useLayout } from '@/hooks/use-layout';
 import { useTheme } from '@/hooks/use-theme';
+import { useDismissOutside, useOverlay } from '@/lib/overlay';
 
 const SEND_RESULT: Record<string, string> = {
   sent: 'Request sent',
@@ -49,7 +50,10 @@ function FindStudents({ knownIds }: { knownIds: Set<string> }) {
   const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [error, setError] = useState('');
   const [sent, setSent] = useState<Record<string, { status: Sent; text?: string }>>({});
-  const [focused, setFocused] = useState(false);
+  const [focused, setFocused] = useOverlay('friend-search');
+  const wrap = useRef<ComponentRef<typeof View>>(null);
+  const dismiss = useCallback(() => setFocused(false), [setFocused]);
+  useDismissOutside(wrap, focused, dismiss);
 
   const q = query.trim();
   useEffect(() => {
@@ -87,14 +91,13 @@ function FindStudents({ knownIds }: { knownIds: Set<string> }) {
 
   const show = focused && q.length >= 1;
   return (
-    <View style={styles.searchWrap}>
+    <View ref={wrap} style={styles.searchWrap}>
       <View style={[styles.field, { backgroundColor: theme.backgroundElement, borderColor: focused ? theme.accentLink : theme.border }]}>
         <Icon name="person-add" size="lg" color="accentLink" />
         <TextInput
           value={query}
           onChangeText={setQuery}
           onFocus={() => setFocused(true)}
-          onBlur={() => setTimeout(() => setFocused(false), 150)}
           placeholder="Find a classmate by username or name"
           placeholderTextColor={theme.textSecondary}
           accessibilityLabel="Find students"

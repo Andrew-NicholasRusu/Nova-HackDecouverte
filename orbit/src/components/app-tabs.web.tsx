@@ -6,6 +6,7 @@ import {
   TabTrigger,
   TabTriggerSlotProps,
 } from 'expo-router/ui';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, View, type PressableProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -93,14 +94,18 @@ export function CustomTabList({ wide, ...props }: TabListProps & { wide: boolean
 
   return (
     <View {...props} accessibilityRole="tablist" style={styles.sidebar}>
-      <View style={styles.brand}>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="Orbit, go to Home"
+        onPress={() => router.navigate('/')}
+        style={(s) => [styles.brand, s.pressed && { opacity: Opacity.pressed }]}>
         <View style={styles.logo}>
           <Icon name="trip-origin" size="xl" color={FixedColors.white} />
         </View>
         <ThemedText type="heading" style={styles.brandText}>
           ORBIT
         </ThemedText>
-      </View>
+      </Pressable>
       <View style={styles.nav}>{props.children}</View>
     </View>
   );
@@ -130,7 +135,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     gap: Spacing.four,
   },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.two },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.two, minHeight: TouchTarget },
   logo: {
     width: TouchTarget,
     height: TouchTarget,

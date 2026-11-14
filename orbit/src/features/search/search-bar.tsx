@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useRef, useState, type ComponentRef } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -8,6 +8,7 @@ import { Icon } from '@/components/ui/icon';
 import { FixedColors, Opacity, Radius, Size, Spacing, TouchTarget, Typography } from '@/constants/theme';
 import { useLayout } from '@/hooks/use-layout';
 import { useTheme } from '@/hooks/use-theme';
+import { useDismissOutside, useOverlay } from '@/lib/overlay';
 
 import { useSearch, type SearchResult } from './use-search';
 
@@ -18,11 +19,18 @@ import { useSearch, type SearchResult } from './use-search';
 export function SearchBar() {
   const theme = useTheme();
   const { isMedium } = useLayout();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useOverlay('hero-search');
+  const wrap = useRef<ComponentRef<typeof View>>(null);
   const [query, setQuery] = useState('');
   const results = useSearch(query);
   const [active, setActive] = useState(0);
   const input = useRef<ComponentRef<typeof TextInput>>(null);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setQuery('');
+  }, [setOpen]);
+  useDismissOutside(wrap, open, close);
 
   useEffect(() => {
     if (open) input.current?.focus();
@@ -33,7 +41,7 @@ export function SearchBar() {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open]);
+  }, [open, close]);
 
   // Press "/" anywhere (outside a text field) to start searching, like most web apps.
   useEffect(() => {
@@ -47,12 +55,7 @@ export function SearchBar() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open]);
-
-  function close() {
-    setOpen(false);
-    setQuery('');
-  }
+  }, [open, setOpen]);
 
   function choose(r: SearchResult) {
     close();
@@ -83,7 +86,7 @@ export function SearchBar() {
 
   let lastGroup = '';
   return (
-    <View style={styles.open}>
+    <View ref={wrap} style={styles.open}>
       <View style={styles.field}>
         <Icon name="search" size="md" color={FixedColors.shellMuted} />
         <TextInput
