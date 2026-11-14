@@ -29,7 +29,7 @@ const toNumber = (v: string) => {
 };
 
 export async function fetchBuildings(): Promise<Building[]> {
-  const raw = await concordiaGet<RawBuilding[]>('facilities/buildinglist');
+  const raw = await concordiaGet<RawBuilding[]>('facilities/buildinglist', { trailingSlash: true });
   const fetchedAt = new Date().toISOString();
   return raw.map((b) => ({
     campus: b.Campus,
