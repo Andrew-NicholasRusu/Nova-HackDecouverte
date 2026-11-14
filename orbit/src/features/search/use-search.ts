@@ -1,25 +1,15 @@
 import { useMemo } from 'react';
 
-import type { IconName } from '@/components/ui/icon';
-import { MOLSON_FLOORS } from '@/constants/floorplans';
+import { SEARCH_PER_GROUP } from '@/data/constants';
+import { SEARCH_GROUPS } from '@/data/enums';
+import { MOLSON_FLOORS } from '@/data/floorplans';
+import { campusName, LIVE_CATEGORY_LABEL } from '@/data/labels';
+import type { SearchResult } from '@/data/types';
 import { useFriends } from '@/features/friends/store';
 import { useLive } from '@/features/live/store';
+import { getRooms } from '@/features/navigator/floorplan/navmesh';
 import { useBuildings } from '@/features/navigator/use-buildings';
 import { useClassEvents } from '@/features/schedule/store';
-import { getRooms } from '@/lib/floorplan/navmesh';
-import type { Target } from '@/features/brain/plan';
-
-export type SearchResult = {
-  id: string;
-  group: 'Classes' | 'Buildings' | 'Rooms' | 'Friends' | 'Campus Live';
-  title: string;
-  subtitle: string;
-  icon: IconName;
-  target: Target;
-};
-
-const GROUP_ORDER: SearchResult['group'][] = ['Classes', 'Rooms', 'Buildings', 'Friends', 'Campus Live'];
-const PER_GROUP = 4;
 
 const rooms = MOLSON_FLOORS.flatMap((f) => getRooms(f.id));
 
@@ -67,7 +57,7 @@ export function useSearch(query: string): SearchResult[] {
             id: `b-${b.campus}-${b.code}`,
             group: 'Buildings',
             title: `${b.code} · ${b.longName || b.name}`,
-            subtitle: `${b.campus === 'LOY' ? 'Loyola' : 'Sir George Williams'} · ${b.address}`,
+            subtitle: `${campusName(b.campus) || b.campus} · ${b.address}`,
             icon: 'apartment',
             target: { pathname: '/navigator', params: { building: b.code } },
           });
@@ -92,7 +82,7 @@ export function useSearch(query: string): SearchResult[] {
           id: `l-${l.id}`,
           group: 'Campus Live',
           title: l.name,
-          subtitle: `${l.category === 'food' ? 'Food' : 'Study space'} · ${l.buildingCode}`,
+          subtitle: `${LIVE_CATEGORY_LABEL[l.category]} · ${l.buildingCode}`,
           icon: l.category === 'food' ? 'restaurant' : 'chair',
           target: { pathname: '/live', params: { place: l.id } },
         });
@@ -100,6 +90,6 @@ export function useSearch(query: string): SearchResult[] {
     }
 
     // Cap per group, keep a stable group order.
-    return GROUP_ORDER.flatMap((g) => out.filter((r) => r.group === g).slice(0, PER_GROUP));
+    return SEARCH_GROUPS.flatMap((g) => out.filter((r) => r.group === g).slice(0, SEARCH_PER_GROUP));
   }, [query, schedule.events, buildings, friends.friends, live.locations]);
 }

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Pressable, SectionList, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, SectionList, TextInput, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { FixedColors, Radius, Size, Spacing, TouchTarget, Typography } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import type { Room } from '@/data/types';
 import { useTheme } from '@/hooks/use-theme';
-import { Room } from '@/lib/floorplan/navmesh';
+import { FixedColors } from '@/styles/theme';
+
+import { styles } from './room-list.styles';
 
 type Props = {
   /** Rooms on the floor being viewed (primary results). */
@@ -58,11 +59,11 @@ export function RoomList({ rooms, otherRooms, selectedCode, onSelect, onFocus }:
         keyboardShouldPersistTaps="handled"
         stickySectionHeadersEnabled
         renderSectionHeader={({ section }) => (
-          <ThemedView type="backgroundSelected" style={styles.header}>
+          <View style={[styles.header, { backgroundColor: theme.backgroundSelected }]}>
             <ThemedText type="smallBold" accessibilityRole="header">
               {section.title}
             </ThemedText>
-          </ThemedView>
+          </View>
         )}
         ListEmptyComponent={
           <ThemedText type="small" themeColor="textSecondary">
@@ -79,15 +80,17 @@ export function RoomList({ rooms, otherRooms, selectedCode, onSelect, onFocus }:
               onPress={() => onSelect(selected ? null : item)}
               style={({ pressed }) => pressed && styles.pressed}
             >
-              <ThemedView
-                type={selected ? 'backgroundSelected' : 'backgroundElement'}
-                style={[styles.row, selected && { borderLeftColor: FixedColors.roomHighlight }]}
-              >
+              <View
+                style={[
+                  styles.row,
+                  { backgroundColor: selected ? theme.backgroundSelected : theme.backgroundElement },
+                  selected && { borderLeftColor: FixedColors.roomHighlight },
+                ]}>
                 <ThemedText type={selected ? 'smallBold' : 'small'}>{item.label}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
                   Floor {item.floor}
                 </ThemedText>
-              </ThemedView>
+              </View>
             </Pressable>
           );
         }}
@@ -95,31 +98,3 @@ export function RoomList({ rooms, otherRooms, selectedCode, onSelect, onFocus }:
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, gap: Spacing.two },
-  input: {
-    minHeight: TouchTarget,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.sm,
-    ...Typography.body,
-  },
-  header: {
-    minHeight: Size.sectionHeader,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.sm,
-    marginTop: Spacing.one,
-  },
-  row: {
-    minHeight: TouchTarget,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.sm,
-    borderLeftWidth: 4,
-    borderLeftColor: 'transparent',
-  },
-  pressed: { opacity: 0.7 },
-});

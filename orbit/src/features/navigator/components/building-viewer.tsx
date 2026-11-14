@@ -1,11 +1,13 @@
-import { Image } from 'expo-image';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { BuildingViewerMaxWidth, Radius, Spacing, FixedColors } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import { MOLSON_FLOORS, MOLSON_PHOTO } from '@/data/floorplans';
+import type { Floor } from '@/data/types';
 import { useTheme } from '@/hooks/use-theme';
-import { Floor, MOLSON_FLOORS, MOLSON_PHOTO, MOLSON_PHOTO_RATIO } from '@/constants/floorplans';
+
+import { styles } from './building-viewer.styles';
 
 type Props = { onSelect: (floor: Floor) => void };
 
@@ -54,30 +56,3 @@ export function BuildingViewer({ onSelect }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  frame: {
-    width: '100%',
-    maxWidth: BuildingViewerMaxWidth,
-    aspectRatio: MOLSON_PHOTO_RATIO,
-    borderRadius: Radius.lg,
-    overflow: 'hidden',
-  },
-  photo: { ...StyleSheet.absoluteFill },
-  band: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    cursor: 'pointer',
-  },
-  bandActive: {
-    borderColor: FixedColors.white,
-  },
-  tag: {
-    paddingHorizontal: Spacing.two + Spacing.one,
-    paddingVertical: Spacing.one,
-    borderRadius: Radius.pill,
-  },
-});

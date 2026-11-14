@@ -1,68 +1,13 @@
 /**
- * ORBIT's single class-event model (PLAN.md §2 Module A: "one standardized class-event
- * data model throughout ORBIT"). Calendar, dashboard, import and (later) friends
- * availability all use these types.
+ * Class-event helpers (PLAN.md §2 Module A): date and time math, colours, normalization and
+ * validation for the one class model (`ClassInput` / `ClassEvent` in data/types.ts).
  *
  * Pure TypeScript — no React Native imports — so it runs in node tests.
- *
- * Time model: `startTime`/`endTime` are wall-clock times ("HH:MM") in the campus
- * timezone (`CAMPUS_TIMEZONE`). Dates are "YYYY-MM-DD". A class repeats weekly on
- * `days` (ISO weekdays, Mon = 1 … Sun = 7) between `startDate` and `endDate` inclusive.
  */
 
-export const CAMPUS_TIMEZONE = 'America/Toronto';
-
-export const CLASS_KINDS = ['lecture', 'tutorial', 'lab', 'exam', 'other'] as const;
-export type ClassKind = (typeof CLASS_KINDS)[number];
-
-export type Weekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-export const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5, 6, 7];
-export const WEEKDAY_SHORT: Record<Weekday, string> = {
-  1: 'Mon',
-  2: 'Tue',
-  3: 'Wed',
-  4: 'Thu',
-  5: 'Fri',
-  6: 'Sat',
-  7: 'Sun',
-};
-
-/** What a student enters (form) or what an import produces, before it is saved. */
-export type ClassInput = {
-  courseCode: string;
-  title: string;
-  section: string;
-  kind: ClassKind;
-  buildingCode: string;
-  room: string;
-  days: Weekday[];
-  startTime: string;
-  endTime: string;
-  startDate: string;
-  endDate: string;
-  color: string | null;
-};
-
-/** The minimum needed to place a class in time. Friends shared as free/busy only expose just this. */
-export type RecurringSlot = Pick<ClassInput, 'days' | 'startTime' | 'endTime' | 'startDate' | 'endDate'>;
-
-/** A saved class event. */
-export type ClassEvent = ClassInput & {
-  id: string;
-  source: 'manual' | 'ics';
-};
-
-/** Muted course colours that read on both light and dark surfaces. */
-export const COURSE_COLORS = [
-  '#8A1F3D',
-  '#2F6F8F',
-  '#3E7C4F',
-  '#B26B1F',
-  '#5B4B8A',
-  '#9C4F2E',
-  '#2F5D8A',
-  '#6B6B3A',
-] as const;
+import { COURSE_COLORS, DEFAULT_TERM_WEEKS } from '../../data/constants.ts';
+import type { Weekday } from '../../data/enums.ts';
+import type { ClassInput, ClassInputErrors } from '../../data/types.ts';
 
 /** Stable colour for a course when the student didn't pick one. */
 export function courseColor(event: Pick<ClassInput, 'courseCode' | 'color'>): string {
@@ -142,8 +87,6 @@ export function atLocalTime(date: string, time: string): Date {
 // Validation
 // ---------------------------------------------------------------------------
 
-export type ClassInputErrors = Partial<Record<keyof ClassInput, string>>;
-
 /** Trims and normalizes an input; times like "9:30" become "09:30". */
 export function normalizeClassInput(input: ClassInput): ClassInput {
   return {
@@ -205,7 +148,7 @@ export function emptyClassInput(today: string): ClassInput {
     startTime: '',
     endTime: '',
     startDate: today,
-    endDate: addDays(today, 7 * 15),
+    endDate: addDays(today, 7 * DEFAULT_TERM_WEEKS),
     color: null,
   };
 }

@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ThemedText } from '@/components/themed-text';
-import { FormWidth, Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+
+import { styles } from './sheet.styles';
 
 type Props = {
   visible: boolean;
@@ -63,25 +64,3 @@ export function Sheet({ visible, title, onClose, actionLabel, onAction, actionDi
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  side: { width: 72 },
-  right: { alignItems: 'flex-end' },
-  title: { flex: 1, textAlign: 'center' },
-  disabled: { opacity: 0.4 },
-  scroll: { alignItems: 'center', padding: Spacing.three, paddingBottom: Spacing.six },
-  content: { width: '100%', maxWidth: FormWidth, gap: Spacing.three },
-  footer: {
-    padding: Spacing.three,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-  },
-});

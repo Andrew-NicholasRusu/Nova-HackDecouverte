@@ -1,17 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import type { CampusFilter } from '@/data/enums';
+import type { Building, Coordinates } from '@/data/types';
 import { apiGet } from '@/lib/api';
-
-/** Client-side view of the building model served by /api/concordia/buildings. */
-export type Building = {
-  campus: string;
-  code: string;
-  name: string;
-  longName: string;
-  address: string;
-  latitude: number | null;
-  longitude: number | null;
-};
 
 type State =
   | { status: 'loading' }
@@ -64,4 +55,21 @@ export function useBuildingIndex() {
     if (data.status === 'ready') for (const b of data.buildings) byCode.set(b.code.toUpperCase(), b);
     return byCode;
   }, [data]);
+}
+
+export const hasCoords = (b: Building): b is Building & Coordinates => b.latitude != null && b.longitude != null;
+
+/** Case-insensitive match on code, names and address; `q` is already lower-cased. */
+export const matchesBuilding = (b: Building, q: string) => `${b.code} ${b.longName} ${b.name} ${b.address}`.toLowerCase().includes(q);
+
+/** Buildings on `campus` matching `q`: the selected one first, then downtown, then by code. */
+export function filterBuildings(buildings: Building[], campus: CampusFilter, q: string, selected: string | null) {
+  return buildings
+    .filter((b) => (campus === 'ALL' || b.campus === campus) && (!q || matchesBuilding(b, q)))
+    .sort(
+      (a, b) =>
+        Number(b.code === selected) - Number(a.code === selected) ||
+        Number(b.campus === 'SGW') - Number(a.campus === 'SGW') ||
+        a.code.localeCompare(b.code),
+    );
 }

@@ -1,18 +1,19 @@
 import { useState } from 'react';
+import { Pressable, View } from 'react-native';
 
-import { Pressable, StyleSheet, View } from 'react-native';
-
-import { ThemedText } from '@/components/themed-text';
+import { AuthFrame } from '@/components/layout/auth-frame';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { TextField } from '@/components/ui/text-field';
-import { Spacing } from '@/constants/theme';
-import { AuthFrame } from './auth-frame';
-import { supabase } from '@/lib/supabase';
+import { ThemedText } from '@/components/ui/themed-text';
+import { signIn, signUp } from '@/features/auth/auth';
+
+import { styles } from './login-screen.styles';
 
 type Mode = 'signIn' | 'signUp';
 
-export function AuthScreen() {
+/** Sign in or create an account (route: /login). */
+export function LoginScreen() {
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,31 +22,21 @@ export function AuthScreen() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const signUp = mode === 'signUp';
+  const isSignUp = mode === 'signUp';
 
   async function submit() {
     setError(null);
     setNotice(null);
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail || !password) return setError('Enter your email and password.');
-    if (signUp && password.length < 8) return setError('Use at least 8 characters for your password.');
-    if (signUp && !displayName.trim()) return setError('Enter a display name.');
-
     setBusy(true);
-    if (signUp) {
-      const { data, error: e } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password,
-        options: { data: { display_name: displayName.trim() } },
-      });
-      if (e) setError(e.message);
-      else if (!data.session) {
-        setNotice(`Check ${cleanEmail} for a confirmation link, then sign in.`);
+    if (isSignUp) {
+      const result = await signUp(email, password, displayName);
+      if (result.error) setError(result.error);
+      else if (result.needsConfirmation) {
+        setNotice(`Check ${email.trim().toLowerCase()} for a confirmation link, then sign in.`);
         setMode('signIn');
       }
     } else {
-      const { error: e } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-      if (e) setError(e.message);
+      setError(await signIn(email, password));
     }
     setBusy(false);
   }
@@ -53,9 +44,9 @@ export function AuthScreen() {
   return (
     <AuthFrame>
       <Card style={styles.card}>
-        <ThemedText type="subtitle">{signUp ? 'Create your account' : 'Welcome back'}</ThemedText>
+        <ThemedText type="subtitle">{isSignUp ? 'Create your account' : 'Welcome back'}</ThemedText>
 
-        {signUp && (
+        {isSignUp && (
           <TextField
             label="Display name"
             value={displayName}
@@ -78,7 +69,7 @@ export function AuthScreen() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          autoComplete={signUp ? 'new-password' : 'current-password'}
+          autoComplete={isSignUp ? 'new-password' : 'current-password'}
           onSubmitEditing={submit}
         />
 
@@ -94,30 +85,25 @@ export function AuthScreen() {
         )}
 
         <Button
-          label={busy ? 'Please wait…' : signUp ? 'Create account' : 'Sign in'}
+          label={busy ? 'Please wait…' : isSignUp ? 'Create account' : 'Sign in'}
           onPress={submit}
           disabled={busy}
         />
 
         <View style={styles.switchRow}>
           <ThemedText type="small" themeColor="textSecondary">
-            {signUp ? 'Already have an account?' : 'New to ORBIT?'}
+            {isSignUp ? 'Already have an account?' : 'New to ORBIT?'}
           </ThemedText>
           <Pressable
             accessibilityRole="button"
             onPress={() => {
-              setMode(signUp ? 'signIn' : 'signUp');
+              setMode(isSignUp ? 'signIn' : 'signUp');
               setError(null);
             }}>
-            <ThemedText type="link">{signUp ? 'Sign in' : 'Create an account'}</ThemedText>
+            <ThemedText type="link">{isSignUp ? 'Sign in' : 'Create an account'}</ThemedText>
           </Pressable>
         </View>
       </Card>
     </AuthFrame>
   );
 }
-
-const styles = StyleSheet.create({
-  card: { gap: Spacing.three },
-  switchRow: { flexDirection: 'row', gap: Spacing.two, justifyContent: 'center', flexWrap: 'wrap' },
-});

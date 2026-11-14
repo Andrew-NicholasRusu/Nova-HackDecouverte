@@ -4,8 +4,9 @@
  * guessed, and the student reviews each one before anything is saved.
  */
 
-import { addDays, type ClassKind, type Weekday } from './model.ts';
-import type { ImportDraft, IcsParseResult } from './ics.ts';
+import type { ClassKind, Weekday } from '../../data/enums.ts';
+import type { ImportDraft, ImportParseResult } from '../../data/types.ts';
+import { addDays } from './model.ts';
 
 /** Concordia building codes that appear in room names ("H 820", "MB 2.130", "EV 7.210"). */
 const BUILDINGS = new Set([
@@ -126,7 +127,7 @@ function parseDateRange(text: string): { startDate: string; endDate: string } | 
 type Meeting = { days: Weekday[]; start: string; end: string; room: { building: string; room: string } | null; guessed: boolean };
 
 /** Splits `text` at each course code and builds one draft per distinct meeting pattern. */
-export function parseScheduleText(text: string, today = new Date()): IcsParseResult {
+export function parseScheduleText(text: string, today = new Date()): ImportParseResult {
   const lines = text
     .replace(/\r/g, '')
     .replace(/[|•·]/g, ' ')

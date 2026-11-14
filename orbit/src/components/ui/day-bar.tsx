@@ -1,14 +1,13 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
-import { Radius, Spacing } from '@/constants/theme';
+import { DAY_BAR } from '@/data/constants';
 import { useTheme } from '@/hooks/use-theme';
 
-/** Day window shown by every bar, so rows line up: 08:00 to 21:00 in minutes. */
-export const DAY_FROM = 8 * 60;
-export const DAY_TO = 21 * 60;
+import { styles } from './day-bar.styles';
+
+/** Every bar shows the same day window (`DAY_BAR`), so rows line up. */
+const { from: DAY_FROM, to: DAY_TO } = DAY_BAR;
 const SPAN = DAY_TO - DAY_FROM;
-const BAR_HEIGHT = Spacing.three;
-const MARKER = 2;
 
 type Block = { from: number; to: number };
 
@@ -37,9 +36,3 @@ export function DayBar({ blocks, nowMin, label }: { blocks: Block[]; nowMin: num
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  track: { height: BAR_HEIGHT, borderRadius: Radius.sm, overflow: 'hidden' },
-  block: { position: 'absolute', top: 0, bottom: 0 },
-  now: { position: 'absolute', top: -Spacing.half, bottom: -Spacing.half, width: MARKER },
-});

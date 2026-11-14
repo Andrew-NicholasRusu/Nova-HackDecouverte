@@ -1,22 +1,9 @@
-import { busyStatusAt, calculateSharedAvailability, type FreeWindow } from '@/features/schedule/availability';
+import type { SharingLevel } from '@/data/enums';
+import type { FreeWindow, Friend, RecurringSlot } from '@/data/types';
+import { busyStatusAt, calculateSharedAvailability } from '@/features/schedule/availability';
 import { occurrencesOnDate } from '@/features/schedule/engine';
-import { addDays, toLocalDate, type RecurringSlot } from '@/features/schedule/model';
-
-import type { Friend } from './store';
-
-export const hm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-
-export const SHARING_LABEL = {
-  private: 'Private',
-  availability: 'Free/busy only',
-  full: 'Full schedule',
-} as const;
-
-export const SHARING_HELP = {
-  private: 'They see nothing about your schedule.',
-  availability: 'They see when you are busy or free, never which class or where.',
-  full: 'They also see your courses and rooms.',
-} as const;
+import { addDays, toLocalDate } from '@/features/schedule/model';
+import { formatClock } from '@/lib/format';
 
 /** One-line status for a friend right now, respecting what they share. */
 export function describeFriendNow(friend: Friend, now: Date): { text: string; free: boolean | null } {
@@ -25,12 +12,27 @@ export function describeFriendNow(friend: Friend, now: Date): { text: string; fr
   if (status.state === 'in-class') {
     const current = occurrencesOnDate(friend.slots, toLocalDate(now)).find((o) => o.start <= now && o.end > now)?.event;
     const where = current?.courseCode ? ` (${current.courseCode}${current.buildingCode ? ` · ${current.buildingCode}` : ''})` : '';
-    return { text: `In class until ${hm(status.until)}${where}`, free: false };
+    return { text: `In class until ${formatClock(status.until)}${where}`, free: false };
   }
   return {
-    text: status.until ? `Free now · until ${hm(status.until)}` : 'Free for the rest of the day',
+    text: status.until ? `Free now · until ${formatClock(status.until)}` : 'Free for the rest of the day',
     free: true,
   };
+}
+
+/** The level I share with every friend, or undefined when friends have different levels. */
+export function commonSharingLevel(friends: Friend[]): SharingLevel | undefined {
+  const levels = new Set(friends.map((f) => f.myLevel));
+  return levels.size === 1 ? [...levels][0] : undefined;
+}
+
+/** Free friends first, then busy, then those not sharing; alphabetical within each. */
+export function sortByAvailability(friends: Friend[], now: Date): Friend[] {
+  const rank = (f: Friend) => {
+    const free = describeFriendNow(f, now).free;
+    return free === true ? 0 : free === false ? 1 : 2;
+  };
+  return [...friends].sort((a, b) => rank(a) - rank(b) || a.displayName.localeCompare(b.displayName));
 }
 
 /**

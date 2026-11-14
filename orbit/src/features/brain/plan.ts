@@ -3,76 +3,24 @@
  * right now. Pure and tested; every suggestion links to the module that can act on it.
  */
 
-import { walkMinutes } from '../../lib/geo.ts';
-import { calculateSharedAvailability } from '../schedule/availability.ts';
-import { calculateNextClass, occurrencesOnDate, type Occurrence } from '../schedule/engine.ts';
-import { toLocalDate, type ClassEvent } from '../schedule/model.ts';
+import type { Campus } from '../../data/enums.ts';
+import { LIVE_LEVEL_PHRASE, LIVE_LEVEL_TONE } from '../../data/labels.ts';
+import type { ClassEvent, FreeWindow, Friend, LiveLocation, Place, Plan, Suggestion } from '../../data/types.ts';
+import { formatClock, formatSpan, minutesBetween } from '../../lib/format.ts';
+import { walkBetween } from '../../lib/geo.ts';
 import { calculateReportConfidence } from '../live/confidence.ts';
-import type { Friend } from '../friends/store';
-import type { LiveLocation } from '../live/store';
-
-export type Place = { code: string; campus: string; name: string; latitude: number | null; longitude: number | null };
-
-export type Target = {
-  pathname: '/navigator' | '/live' | '/friends' | '/schedule' | '/settings';
-  params?: Record<string, string>;
-};
-
-export type Suggestion = {
-  id: string;
-  kind: 'leave' | 'food' | 'study' | 'friend';
-  title: string;
-  detail: string;
-  tone: 'success' | 'warning' | 'danger' | 'neutral';
-  cta: string;
-  target: Target;
-};
-
-export type Plan = {
-  state: 'empty' | 'in-class' | 'free' | 'done';
-  headline: string;
-  sub: string;
-  current: Occurrence | null;
-  next: Occurrence | null;
-  /** Minutes of free time before the next class today (counted from the end of the current class). */
-  freeMinutes: number | null;
-  nextBuilding: Place | null;
-  /** Building the student is in or just left, used for walking times. */
-  here: Place | null;
-  walkToNext: number | null;
-  leaveBy: Date | null;
-  suggestions: Suggestion[];
-};
+import { calculateSharedAvailability } from '../schedule/availability.ts';
+import { calculateNextClass, occurrencesOnDate } from '../schedule/engine.ts';
+import { toLocalDate } from '../schedule/model.ts';
 
 export type PlanInput = {
   events: ClassEvent[];
   friends: Friend[];
   locations: LiveLocation[];
   buildings: Map<string, Place>;
-  campus: 'SGW' | 'LOY' | null;
+  campus: Campus | null;
   now: Date;
 };
-
-const LABEL = {
-  food: ['no line', 'short line', 'medium line', 'long line'],
-  study: ['lots of seats', 'some seats', 'nearly full', 'full'],
-} as const;
-const TONE = ['success', 'success', 'warning', 'danger'] as const;
-
-const hm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-const mins = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 60_000);
-
-export function formatSpan(minutes: number) {
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m ? `${h} h ${m} min` : `${h} h`;
-}
-
-function walk(a: Place | null | undefined, b: Place | null | undefined) {
-  if (!a || !b || a.latitude == null || a.longitude == null || b.latitude == null || b.longitude == null) return null;
-  return walkMinutes({ latitude: a.latitude, longitude: a.longitude }, { latitude: b.latitude, longitude: b.longitude });
-}
 
 export function buildPlan({ events, friends, locations, buildings, campus, now }: PlanInput): Plan {
   const { current, next } = calculateNextClass(events, now);
@@ -88,23 +36,23 @@ export function buildPlan({ events, friends, locations, buildings, campus, now }
   const here = current ? place(current.event.buildingCode) : anchor;
   const freeStart = current ? current.end : now;
   const nextBuilding = place(next?.event.buildingCode);
-  const freeMinutes = nextToday ? Math.max(0, mins(freeStart, nextToday.start)) : null;
-  const walkToNext = walk(current ? place(current.event.buildingCode) : anchor, nextBuilding);
+  const freeMinutes = nextToday ? Math.max(0, minutesBetween(freeStart, nextToday.start)) : null;
+  const walkToNext = walkBetween(current ? place(current.event.buildingCode) : anchor, nextBuilding);
 
   const suggestions: Suggestion[] = [];
 
   // 1. Get to the next class on time.
   let leaveBy: Date | null = null;
-  if (nextToday && !current && mins(now, nextToday.start) <= 90) {
-    const w = walk(anchor, nextBuilding);
+  if (nextToday && !current && minutesBetween(now, nextToday.start) <= 90) {
+    const w = walkBetween(anchor, nextBuilding);
     if (w !== null) leaveBy = new Date(nextToday.start.getTime() - (w + 3) * 60_000);
     const room = [nextToday.event.buildingCode, nextToday.event.room].filter(Boolean).join(' ');
     suggestions.push({
       id: 'leave',
       kind: 'leave',
-      title: leaveBy ? `Leave by ${hm(leaveBy)}` : `Head to ${room || 'your next class'}`,
-      detail: w !== null ? `${w} min walk to ${room}` : `${nextToday.event.courseCode} starts at ${hm(nextToday.start)}`,
-      tone: leaveBy && mins(now, leaveBy) <= 10 ? 'warning' : 'neutral',
+      title: leaveBy ? `Leave by ${formatClock(leaveBy)}` : `Head to ${room || 'your next class'}`,
+      detail: w !== null ? `${w} min walk to ${room}` : `${nextToday.event.courseCode} starts at ${formatClock(nextToday.start)}`,
+      tone: leaveBy && minutesBetween(now, leaveBy) <= 10 ? 'warning' : 'neutral',
       cta: 'Show route',
       target: { pathname: '/navigator', params: { building: nextToday.event.buildingCode } },
     });
@@ -116,7 +64,7 @@ export function buildPlan({ events, friends, locations, buildings, campus, now }
   const best = (category: 'food' | 'study') =>
     locations
       .filter((l) => l.category === category && (!region || l.campus === region))
-      .map((l) => ({ l, e: calculateReportConfidence(l.reports, now), w: walk(here, place(l.buildingCode)) }))
+      .map((l) => ({ l, e: calculateReportConfidence(l.reports, now), w: walkBetween(here, place(l.buildingCode)) }))
       .filter((x) => x.e.level !== null && (x.w === null || x.w * 2 + 10 <= budget))
       .sort((a, b) => (a.e.level! - b.e.level!) * 10 + ((a.w ?? 5) - (b.w ?? 5)))[0];
 
@@ -128,7 +76,7 @@ export function buildPlan({ events, friends, locations, buildings, campus, now }
       suggestions.push({
         id: category,
         kind: category,
-        title: `${pick.l.name}: ${LABEL[category][level]}`,
+        title: `${pick.l.name}: ${LIVE_LEVEL_PHRASE[category][level]}`,
         detail: [
           pick.w !== null ? `${pick.w} min walk` : null,
           `${pick.e.contributors} ${pick.e.contributors === 1 ? 'student' : 'students'} reported`,
@@ -136,7 +84,7 @@ export function buildPlan({ events, friends, locations, buildings, campus, now }
         ]
           .filter(Boolean)
           .join(' · '),
-        tone: TONE[level],
+        tone: LIVE_LEVEL_TONE[level],
         cta: 'Open in Live',
         target: { pathname: '/live', params: { place: pick.l.id } },
       });
@@ -153,15 +101,15 @@ export function buildPlan({ events, friends, locations, buildings, campus, now }
       );
       return w ? { f, w } : null;
     })
-    .filter((x): x is { f: Friend; w: { start: Date; end: Date; minutes: number } } => !!x)
+    .filter((x): x is { f: Friend; w: FreeWindow } => !!x)
     .sort((a, b) => a.w.start.getTime() - b.w.start.getTime())[0];
   if (meets) {
     const study = best('study');
     suggestions.push({
       id: 'friend',
       kind: 'friend',
-      title: `${meets.f.displayName.split(' ')[0]} is free ${hm(meets.w.start)}–${hm(meets.w.end)}`,
-      detail: study ? `Meet at ${study.l.name} (${LABEL.study[study.e.level!]})` : `${formatSpan(meets.w.minutes)} together`,
+      title: `${meets.f.displayName.split(' ')[0]} is free ${formatClock(meets.w.start)}–${formatClock(meets.w.end)}`,
+      detail: study ? `Meet at ${study.l.name} (${LIVE_LEVEL_PHRASE.study[study.e.level!]})` : `${formatSpan(meets.w.minutes)} together`,
       tone: 'success',
       cta: 'Plan it',
       target: { pathname: '/friends', params: { friend: meets.f.id } },
@@ -176,7 +124,7 @@ export function buildPlan({ events, friends, locations, buildings, campus, now }
     const where = [current.event.buildingCode, current.event.room].filter(Boolean).join(' ');
     return {
       state: 'in-class',
-      headline: `${current.event.courseCode} until ${hm(current.end)}`,
+      headline: `${current.event.courseCode} until ${formatClock(current.end)}`,
       sub: nextToday ? `${formatSpan(freeMinutes ?? 0)} until ${nextToday.event.courseCode}${where ? ` · now in ${where}` : ''}` : 'Last class of the day',
       current, next, freeMinutes, nextBuilding, here, walkToNext, leaveBy, suggestions,
     };
@@ -185,14 +133,14 @@ export function buildPlan({ events, friends, locations, buildings, campus, now }
     return {
       state: 'free',
       headline: `${formatSpan(freeMinutes ?? 0)} free before ${nextToday.event.courseCode}`,
-      sub: `Starts ${hm(nextToday.start)}${nextToday.event.room ? ` in ${nextToday.event.buildingCode} ${nextToday.event.room}` : ''}${walkToNext !== null ? ` · ${walkToNext} min walk` : ''}`,
+      sub: `Starts ${formatClock(nextToday.start)}${nextToday.event.room ? ` in ${nextToday.event.buildingCode} ${nextToday.event.room}` : ''}${walkToNext !== null ? ` · ${walkToNext} min walk` : ''}`,
       current, next, freeMinutes, nextBuilding, here, walkToNext, leaveBy, suggestions,
     };
   }
   return {
     state: 'done',
     headline: 'Done for today',
-    sub: next ? `Next up: ${next.event.courseCode}, ${next.start.toLocaleDateString([], { weekday: 'long' })} ${hm(next.start)}` : 'No upcoming classes',
+    sub: next ? `Next up: ${next.event.courseCode}, ${next.start.toLocaleDateString([], { weekday: 'long' })} ${formatClock(next.start)}` : 'No upcoming classes',
     current, next, freeMinutes, nextBuilding, here, walkToNext, leaveBy, suggestions,
   };
 }

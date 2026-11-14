@@ -1,25 +1,19 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Sheet } from '@/components/ui/sheet';
 import { TextField } from '@/components/ui/text-field';
-import { Radius, Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import { COURSE_COLORS } from '@/data/constants';
+import { CLASS_KINDS, WEEKDAYS } from '@/data/enums';
+import { WEEKDAY_SHORT } from '@/data/labels';
+import type { ClassInput, ClassInputErrors } from '@/data/types';
+import { courseColor, normalizeClassInput, validateClassInput } from '@/features/schedule/model';
 import { useTheme } from '@/hooks/use-theme';
 
-import {
-  CLASS_KINDS,
-  COURSE_COLORS,
-  courseColor,
-  normalizeClassInput,
-  validateClassInput,
-  WEEKDAY_SHORT,
-  WEEKDAYS,
-  type ClassInput,
-  type ClassInputErrors,
-} from './model';
+import { styles } from './class-form.styles';
 
 type Props = {
   title: string;
@@ -276,13 +270,3 @@ export function ClassForm({ title, initial, submitLabel = 'Save', onCancel, onSu
     </Sheet>
   );
 }
-
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: Spacing.three },
-  flex: { flex: 1, gap: Spacing.one },
-  narrow: { width: 96, gap: Spacing.one },
-  group: { gap: Spacing.two },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  swatch: { width: 32, height: 32, borderRadius: Radius.pill, borderWidth: 3 },
-  delete: { marginTop: Spacing.three },
-});

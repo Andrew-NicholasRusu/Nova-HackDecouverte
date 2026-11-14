@@ -1,6 +1,6 @@
 import { NativeTabs } from 'expo-router/native-tabs';
 
-import { TABS } from '@/constants/tabs';
+import { TABS } from '@/data/navigation';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function AppTabs() {

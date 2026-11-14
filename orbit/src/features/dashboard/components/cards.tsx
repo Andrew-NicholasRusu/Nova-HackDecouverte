@@ -1,21 +1,24 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Pill } from '@/components/ui/pill';
-import { Opacity, Radius, Spacing, TouchTarget } from '@/constants/theme';
-import { describeFriendNow, hm, nextSharedWindow } from '@/features/friends/describe';
+import { ThemedText } from '@/components/ui/themed-text';
+import { DASHBOARD_FRIENDS_SHOWN } from '@/data/constants';
+import type { Campus } from '@/data/enums';
+import { LIVE_LEVEL_SHORT } from '@/data/labels';
+import { describeFriendNow, nextSharedWindow } from '@/features/friends/describe';
 import { useFriends } from '@/features/friends/store';
-import { LEVEL_SHORT, estimateFor, useLive } from '@/features/live/store';
-import type { Campus } from '@/features/profile/use-profile';
+import { estimateFor, useLive } from '@/features/live/store';
 import { useClassEvents } from '@/features/schedule/store';
 import { useTheme } from '@/hooks/use-theme';
+import { formatClock } from '@/lib/format';
+import { Opacity } from '@/styles/theme';
 
-const SHOWN = 4;
+import { styles } from './cards.styles';
 
 /** Who is free now, and the next free time together. */
 export function FriendsCard({ now }: { now: Date }) {
@@ -45,10 +48,10 @@ export function FriendsCard({ now }: { now: Date }) {
         <>
           {freeNow.length > 0 ? (
             <View style={styles.avatars}>
-              {freeNow.slice(0, SHOWN).map((f) => (
+              {freeNow.slice(0, DASHBOARD_FRIENDS_SHOWN).map((f) => (
                 <Avatar key={f.id} name={f.displayName} uri={f.avatarUrl} size="lg" presence="free" />
               ))}
-              {freeNow.length > SHOWN ? <Pill label={`+${freeNow.length - SHOWN}`} /> : null}
+              {freeNow.length > DASHBOARD_FRIENDS_SHOWN ? <Pill label={`+${freeNow.length - DASHBOARD_FRIENDS_SHOWN}`} /> : null}
             </View>
           ) : null}
           <ThemedText type="small" themeColor={freeNow.length ? 'text' : 'textSecondary'} accessibilityLiveRegion="polite">
@@ -58,7 +61,7 @@ export function FriendsCard({ now }: { now: Date }) {
           </ThemedText>
           {best ? (
             <ThemedText type="caption" themeColor="accentLink">
-              Next together: {best.friend.displayName.split(' ')[0]}, {hm(best.shared!.window.start)}–{hm(best.shared!.window.end)}
+              Next together: {best.friend.displayName.split(' ')[0]}, {formatClock(best.shared!.window.start)}–{formatClock(best.shared!.window.end)}
             </ThemedText>
           ) : null}
         </>
@@ -94,7 +97,7 @@ export function LiveCard({ now, campus }: { now: Date; campus: Campus | null }) 
           <Pressable
             key={location.id}
             accessibilityRole="button"
-            accessibilityLabel={`${location.name}: ${estimate.level === null ? 'no recent reports' : LEVEL_SHORT[location.category][estimate.level]}`}
+            accessibilityLabel={`${location.name}: ${estimate.level === null ? 'no recent reports' : LIVE_LEVEL_SHORT[location.category][estimate.level]}`}
             onPress={() => router.push({ pathname: '/live', params: { place: location.id } })}
             style={({ pressed }) => [styles.row, pressed && { opacity: Opacity.pressed }]}>
             <View style={[styles.tile, { backgroundColor: theme.accentTint }]}>
@@ -108,7 +111,7 @@ export function LiveCard({ now, campus }: { now: Date; campus: Campus | null }) 
                 type="small"
                 themeColor={estimate.level === null ? 'textSecondary' : estimate.level <= 1 ? 'success' : estimate.level === 2 ? 'warning' : 'danger'}
                 numberOfLines={1}>
-                {estimate.level === null ? 'No recent reports' : LEVEL_SHORT[location.category][estimate.level]}
+                {estimate.level === null ? 'No recent reports' : LIVE_LEVEL_SHORT[location.category][estimate.level]}
               </ThemedText>
             </View>
             <Icon name="chevron-right" size="md" color="textSecondary" />
@@ -118,10 +121,3 @@ export function LiveCard({ now, campus }: { now: Date; campus: Campus | null }) 
     </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  avatars: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  row: { minHeight: TouchTarget + Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  tile: { width: TouchTarget, height: TouchTarget, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
-  grow: { flex: 1, gap: Spacing.half },
-});

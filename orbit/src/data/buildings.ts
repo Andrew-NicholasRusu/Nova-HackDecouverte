@@ -1,4 +1,4 @@
-import type { Building } from './use-buildings';
+import type { Building } from './types.ts';
 
 const b = (campus: string, code: string, longName: string, address: string, latitude: number, longitude: number): Building => ({
   campus,

@@ -1,18 +1,20 @@
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Pill } from '@/components/ui/pill';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Radius, Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import type { ClassEvent } from '@/data/types';
+import { calculateNextClass } from '@/features/schedule/engine';
+import { formatLocation, formatStartsIn } from '@/features/schedule/format';
+import { courseColor, toLocalDate } from '@/features/schedule/model';
+import { useClassEvents } from '@/features/schedule/store';
+import { useNow } from '@/hooks/use-now';
+import { formatDuration } from '@/lib/format';
 
-import { ClassBlock } from './class-block';
-import { calculateFreePeriods, calculateNextClass, occurrencesOnDate } from './engine';
-import { formatDuration, formatLocation, formatStartsIn, useNow } from './format';
-import { courseColor, toLocalDate, type ClassEvent } from './model';
-import { useClassEvents } from './store';
+import { styles } from './next-class-card.styles';
 
 /** Molson (MB) has indoor floor plans; everything else opens the building directory. */
 function openRoom(event: ClassEvent) {
@@ -99,43 +101,3 @@ export function NextClassCard() {
   );
 }
 
-/** Today's classes and breaks. Hidden when there's nothing today. */
-export function TodayCard() {
-  const schedule = useClassEvents();
-  const now = useNow();
-  const today = occurrencesOnDate(schedule.events, toLocalDate(now));
-  if (today.length === 0) return null;
-
-  const remaining = today.filter((o) => o.end > now).length;
-  const longestBreak = calculateFreePeriods(today.filter((o) => o.end > now), 30).sort((a, b) => b.minutes - a.minutes)[0];
-
-  return (
-    <Card>
-      <CardHeader icon="today" title={remaining === 0 ? 'Today · done for the day' : `Today · ${remaining} left`} actionLabel="Schedule" onAction={() => router.push('/schedule')} />
-      <View style={styles.list}>
-        {today.map((o, i) => (
-          <ClassBlock
-            key={`${o.event.id}-${i}`}
-            event={o.event}
-            status={o.start <= now && o.end > now ? 'now' : o.end <= now ? 'done' : undefined}
-            onPress={() => router.push('/schedule')}
-          />
-        ))}
-      </View>
-      {longestBreak ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          Longest break: {formatDuration(longestBreak.minutes)} from{' '}
-          {String(longestBreak.start.getHours()).padStart(2, '0')}:{String(longestBreak.start.getMinutes()).padStart(2, '0')}
-        </ThemedText>
-      ) : null}
-    </Card>
-  );
-}
-
-const styles = StyleSheet.create({
-  codeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  swatch: { width: Spacing.three, height: Spacing.five, borderRadius: Radius.pill },
-  grow: { flex: 1 },
-  meta: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
-  list: { gap: Spacing.two },
-});

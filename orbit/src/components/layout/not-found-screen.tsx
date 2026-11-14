@@ -1,14 +1,15 @@
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 
+import { styles } from './not-found-screen.styles';
+
 /** Shown for any address the app does not have. */
-export default function NotFound() {
+export function NotFoundScreen() {
   const theme = useTheme();
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -23,8 +24,3 @@ export default function NotFound() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three, padding: Spacing.four },
-  text: { textAlign: 'center' },
-});

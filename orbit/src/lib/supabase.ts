@@ -30,3 +30,26 @@ if (Platform.OS !== 'web') {
     else supabase.auth.stopAutoRefresh();
   });
 }
+
+/** PostgREST / Postgres codes for a table or function that does not exist yet. */
+const MISSING_CODES = new Set(['PGRST202', 'PGRST205', '42P01']);
+
+/** A readable message for a Supabase error; a missing table points to the migration that creates it. */
+export function toUserError(error: { code?: string; message: string }, missingHint: string): string {
+  return error.code && MISSING_CODES.has(error.code) ? missingHint : error.message;
+}
+
+/**
+ * Calls `onChange` whenever a different account signs in or the student signs out,
+ * so per-user stores can drop the previous account's data.
+ */
+export function onUserChange(onChange: () => void) {
+  let currentUserId: string | undefined;
+  supabase.auth.onAuthStateChange((_event, session) => {
+    const userId = session?.user.id;
+    if (userId !== currentUserId) {
+      currentUserId = userId;
+      onChange();
+    }
+  });
+}

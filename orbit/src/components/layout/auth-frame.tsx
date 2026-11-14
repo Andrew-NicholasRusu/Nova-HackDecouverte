@@ -1,14 +1,16 @@
+import type { ReactNode } from 'react';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
-import { HERO_FOCUS, HERO_PHOTO, HERO_PHOTO_ALT } from '@/constants/images';
-import { AuthFormWidth, FixedColors, Size, Spacing, TouchTarget } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import { HERO_FOCUS, HERO_PHOTO, HERO_PHOTO_ALT } from '@/data/images';
 import { useLayout } from '@/hooks/use-layout';
 import { useTheme } from '@/hooks/use-theme';
+import { FixedColors } from '@/styles/theme';
+
+import { styles } from './auth-frame.styles';
 
 /** Shared layout for signed-out and first-run screens: Concordia photo beside a centred form. */
 export function AuthFrame({ children }: { children: ReactNode }) {
@@ -43,13 +45,3 @@ export function AuthFrame({ children }: { children: ReactNode }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, flexDirection: 'row' },
-  photo: { flex: 1, justifyContent: 'flex-end', padding: Spacing.six, backgroundColor: FixedColors.shell },
-  photoCopy: { maxWidth: Size.copyMax },
-  formWrap: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.three },
-  form: { width: '100%', maxWidth: AuthFormWidth, gap: Spacing.four },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  logo: { width: TouchTarget + Spacing.two, height: TouchTarget + Spacing.two, borderRadius: Spacing.three, backgroundColor: FixedColors.shellActive, alignItems: 'center', justifyContent: 'center' },
-});

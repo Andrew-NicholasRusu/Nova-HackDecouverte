@@ -1,25 +1,15 @@
 import { useState } from 'react';
-import { StyleSheet } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
+import { AuthFrame } from '@/components/layout/auth-frame';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { AuthFrame } from '@/features/auth/auth-frame';
-import { Spacing } from '@/constants/theme';
-import { supabase } from '@/lib/supabase';
+import { ThemedText } from '@/components/ui/themed-text';
+import type { Profile, ProfileEdit, ProfileErrors } from '@/data/types';
+import { signOut } from '@/features/auth/auth';
 
+import { suggestUsername, updateProfile, validateProfile } from '../use-profile';
+import { styles } from './onboarding-screen.styles';
 import { ProfileFields } from './profile-fields';
-import { updateProfile, validateProfile, type Profile, type ProfileEdit } from './use-profile';
-
-function suggestUsername(name: string) {
-  return name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 24);
-}
 
 /** Shown once after sign-up, until the student has a username (PLAN.md Milestone 2). */
 export function OnboardingScreen({ profile }: { profile: Profile }) {
@@ -29,7 +19,7 @@ export function OnboardingScreen({ profile }: { profile: Profile }) {
     bio: profile.bio,
     preferred_campus: profile.preferred_campus,
   });
-  const [errors, setErrors] = useState<ReturnType<typeof validateProfile>>({});
+  const [errors, setErrors] = useState<ProfileErrors>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,11 +54,7 @@ export function OnboardingScreen({ profile }: { profile: Profile }) {
         ) : null}
         <Button label={busy ? 'Saving…' : 'Continue'} icon="arrow-forward" onPress={submit} disabled={busy} />
       </Card>
-      <Button label="Sign out" variant="ghost" onPress={() => supabase.auth.signOut()} />
+      <Button label="Sign out" variant="ghost" onPress={signOut} />
     </AuthFrame>
   );
 }
-
-const styles = StyleSheet.create({
-  card: { gap: Spacing.three, padding: Spacing.four },
-});

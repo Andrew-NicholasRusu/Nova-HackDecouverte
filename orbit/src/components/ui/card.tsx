@@ -1,11 +1,13 @@
-import { StyleSheet, View, type ViewProps } from 'react-native';
+import { View, type ViewProps } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Icon, type IconName } from '@/components/ui/icon';
+import { Icon } from '@/components/ui/icon';
 import { Pill } from '@/components/ui/pill';
-import { Elevation, Radius, Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import type { IconName } from '@/data/types';
 import { useTheme } from '@/hooks/use-theme';
+
+import { styles } from './card.styles';
 
 export function Card({ style, ...rest }: ViewProps) {
   const theme = useTheme();
@@ -47,17 +49,3 @@ export function CardHeader({ icon, title, actionLabel, onAction, sample }: Heade
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    flexGrow: 1,
-    borderRadius: Radius.xl,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: Spacing.four,
-    gap: Spacing.three,
-    ...Elevation.card,
-  },
-  titleText: { flexShrink: 0 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
-  title: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.two, flexShrink: 1 },
-});

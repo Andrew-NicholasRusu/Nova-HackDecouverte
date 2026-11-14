@@ -1,8 +1,9 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+
+import { styles } from './pill.styles';
 
 type Props = { label: string; tone?: 'neutral' | 'gold' | 'accent' };
 
@@ -20,12 +21,3 @@ export function Pill({ label, tone = 'neutral' }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  pill: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.half,
-    borderRadius: Radius.pill,
-    alignSelf: 'flex-start',
-  },
-});

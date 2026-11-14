@@ -1,11 +1,12 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { Platform } from 'react-native';
 
-import { setAvatarUrl } from '@/features/profile/use-profile';
+import { AVATAR } from '@/data/constants';
 import { supabase } from '@/lib/supabase';
 
-const SIZE = 320;
-const MAX_BYTES = 2_000_000;
+import { setAvatarUrl } from './use-profile';
+
+const SIZE = AVATAR.size;
 
 /** Centre-crops to a square and shrinks it (web). Pictures stay small and consistent. */
 async function toSquareJpeg(blob: Blob): Promise<Blob> {
@@ -39,17 +40,17 @@ export async function chooseAndUploadAvatar(userId: string): Promise<boolean> {
       throw new Error('Could not read that image. Try a JPG or PNG.');
     }
   }
-  if (blob.size > MAX_BYTES) throw new Error('That picture is over 2 MB. Choose a smaller one.');
+  if (blob.size > AVATAR.maxBytes) throw new Error('That picture is over 2 MB. Choose a smaller one.');
 
   const path = `${userId}/avatar.jpg`;
-  const { error } = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: Platform.OS === 'web' ? 'image/jpeg' : blob.type || 'image/jpeg' });
+  const { error } = await supabase.storage.from(AVATAR.bucket).upload(path, blob, { upsert: true, contentType: Platform.OS === 'web' ? 'image/jpeg' : blob.type || 'image/jpeg' });
   if (error) throw new Error(friendly(error.message));
   // The version suffix busts caches: the file name never changes.
-  await setAvatarUrl(`${supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl}?v=${Date.now()}`);
+  await setAvatarUrl(`${supabase.storage.from(AVATAR.bucket).getPublicUrl(path).data.publicUrl}?v=${Date.now()}`);
   return true;
 }
 
 export async function removeAvatar(userId: string) {
-  await supabase.storage.from('avatars').remove([`${userId}/avatar.jpg`]);
+  await supabase.storage.from(AVATAR.bucket).remove([`${userId}/avatar.jpg`]);
   await setAvatarUrl(null);
 }

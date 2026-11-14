@@ -1,44 +1,34 @@
+import { type ComponentRef, useCallback, useRef, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
+import { Screen } from '@/components/layout/screen';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { DAY_FROM, DayBar } from '@/components/ui/day-bar';
+import { DayBar } from '@/components/ui/day-bar';
 import { Dropdown } from '@/components/ui/dropdown';
 import { Icon } from '@/components/ui/icon';
-import { Screen } from '@/components/ui/screen';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/state-views';
-import { Elevation, Opacity, Radius, Size, Spacing, TouchTarget, Typography } from '@/constants/theme';
-import { describeFriendNow, hm, nextSharedWindow } from '@/features/friends/describe';
-import { FriendSheet } from '@/features/friends/friend-sheet';
-import {
-  loadFriends,
-  removeFriendship,
-  respondToRequest,
-  searchStudents,
-  sendFriendRequest,
-  useFriends,
-  type Friend,
-  type StudentSummary,
-} from '@/features/friends/store';
-import { occurrencesOnDate } from '@/features/schedule/engine';
-import { useNow } from '@/features/schedule/format';
+import { ThemedText } from '@/components/ui/themed-text';
+import { DAY_BAR } from '@/data/constants';
+import { CAMPUS_NAME, FRIEND_REQUEST_RESULT } from '@/data/labels';
+import type { ClassEvent, Friend, StudentSummary } from '@/data/types';
+import { busyBlocks } from '@/features/schedule/engine';
 import { toLocalDate } from '@/features/schedule/model';
 import { useClassEvents } from '@/features/schedule/store';
 import { useLayout } from '@/hooks/use-layout';
+import { useNow } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
+import { formatClock, minutesOfDay } from '@/lib/format';
 import { useDismissOutside, useOverlay } from '@/lib/overlay';
+import { Opacity } from '@/styles/theme';
 
-const SEND_RESULT: Record<string, string> = {
-  sent: 'Request sent',
-  accepted: 'You are now friends',
-  already_sent: 'Already requested',
-  already_friends: 'Already friends',
-};
+import { describeFriendNow, nextSharedWindow, sortByAvailability } from '../describe';
+import { loadFriends, removeFriendship, respondToRequest, sendFriendRequest, useFriends, useStudentSearch } from '../store';
+import { FriendSheet } from './friend-sheet';
+import { styles } from './friends-screen.styles';
 
 type Sent = 'idle' | 'busy' | 'done' | 'error';
 
@@ -46,9 +36,6 @@ type Sent = 'idle' | 'busy' | 'done' | 'error';
 function FindStudents({ knownIds }: { knownIds: Set<string> }) {
   const theme = useTheme();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<StudentSummary[]>([]);
-  const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle');
-  const [error, setError] = useState('');
   const [sent, setSent] = useState<Record<string, { status: Sent; text?: string }>>({});
   const [focused, setFocused] = useOverlay('friend-search');
   const wrap = useRef<ComponentRef<typeof View>>(null);
@@ -56,34 +43,13 @@ function FindStudents({ knownIds }: { knownIds: Set<string> }) {
   useDismissOutside(wrap, focused, dismiss);
 
   const q = query.trim();
-  useEffect(() => {
-    if (q.length < 2) return;
-    let cancelled = false;
-    const id = setTimeout(() => {
-      setState('loading');
-      searchStudents(q)
-        .then((r) => {
-          if (cancelled) return;
-          setResults(r);
-          setState('idle');
-        })
-        .catch((e: Error) => {
-          if (cancelled) return;
-          setError(e.message);
-          setState('error');
-        });
-    }, 250);
-    return () => {
-      cancelled = true;
-      clearTimeout(id);
-    };
-  }, [q]);
+  const { status: state, results, error } = useStudentSearch(q);
 
   async function add(s: StudentSummary) {
     setSent((p) => ({ ...p, [s.id]: { status: 'busy' } }));
     try {
       const r = await sendFriendRequest(s.id);
-      setSent((p) => ({ ...p, [s.id]: { status: 'done', text: SEND_RESULT[r] ?? 'Done' } }));
+      setSent((p) => ({ ...p, [s.id]: { status: 'done', text: FRIEND_REQUEST_RESULT[r] ?? 'Done' } }));
     } catch (e) {
       setSent((p) => ({ ...p, [s.id]: { status: 'error', text: e instanceof Error ? e.message : 'Could not send' } }));
     }
@@ -147,7 +113,7 @@ function FindStudents({ knownIds }: { knownIds: Set<string> }) {
                       {s.displayName}
                     </ThemedText>
                     <ThemedText type="caption" themeColor={st?.status === 'error' ? 'danger' : 'textSecondary'} numberOfLines={1}>
-                      {st?.text ?? `@${s.username}${s.campus ? ` · ${s.campus === 'SGW' ? 'Sir George Williams' : 'Loyola'}` : ''}`}
+                      {st?.text ?? `@${s.username}${s.campus ? ` · ${CAMPUS_NAME[s.campus]}` : ''}`}
                     </ThemedText>
                   </View>
                   {known || st?.status === 'done' ? (
@@ -170,19 +136,12 @@ function FindStudents({ knownIds }: { knownIds: Set<string> }) {
   );
 }
 
-/** Free friends first, then busy, then those not sharing. */
-function rank(f: Friend, now: Date) {
-  const free = describeFriendNow(f, now).free;
-  return free === true ? 0 : free === false ? 1 : 2;
-}
-
-function Roster({ friends, now, onOpen, mineEvents }: { friends: Friend[]; now: Date; onOpen: (id: string) => void; mineEvents: ReturnType<typeof useClassEvents>['events'] }) {
+function Roster({ friends, now, onOpen, mineEvents }: { friends: Friend[]; now: Date; onOpen: (id: string) => void; mineEvents: ClassEvent[] }) {
   const theme = useTheme();
   const { isMedium } = useLayout();
   const today = toLocalDate(now);
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  const toBlocks = (slots: Friend['slots']) =>
-    occurrencesOnDate(slots, today).map((o) => ({ from: o.start.getHours() * 60 + o.start.getMinutes(), to: o.end.getHours() * 60 + o.end.getMinutes() }));
+  const nowMin = minutesOfDay(now);
+  const myBlocks = busyBlocks(mineEvents, today);
 
   return (
     <Card style={styles.roster}>
@@ -192,24 +151,22 @@ function Roster({ friends, now, onOpen, mineEvents }: { friends: Friend[]; now: 
           <View style={styles.flex}>
             <ThemedText type="smallBold">You</ThemedText>
             <ThemedText type="caption" themeColor="textSecondary">
-              {toBlocks(mineEvents).length} classes today
+              {myBlocks.length} classes today
             </ThemedText>
           </View>
         </View>
         <View style={styles.flex}>
-          <DayBar blocks={toBlocks(mineEvents)} nowMin={nowMin} label="Your day" />
+          <DayBar blocks={myBlocks} nowMin={nowMin} label="Your day" />
           <View style={styles.axis}>
             {[8, 12, 16].map((h) => (
-              <ThemedText key={h} type="caption" themeColor="textSecondary" style={[styles.tick, { left: `${((h * 60 - DAY_FROM) / (13 * 60)) * 100}%` }]}>
+              <ThemedText key={h} type="caption" themeColor="textSecondary" style={[styles.tick, { left: `${((h * 60 - DAY_BAR.from) / (DAY_BAR.to - DAY_BAR.from)) * 100}%` }]}>
                 {h === 12 ? '12 PM' : h > 12 ? `${h - 12} PM` : `${h} AM`}
               </ThemedText>
             ))}
           </View>
         </View>
       </View>
-      {[...friends]
-        .sort((a, b) => rank(a, now) - rank(b, now) || a.displayName.localeCompare(b.displayName))
-        .map((f) => {
+      {sortByAvailability(friends, now).map((f) => {
         const status = describeFriendNow(f, now);
         const shared = nextSharedWindow(mineEvents, f, now);
         return (
@@ -231,14 +188,14 @@ function Roster({ friends, now, onOpen, mineEvents }: { friends: Friend[]; now: 
                 {shared ? (
                   <ThemedText type="caption" themeColor="accentLink">
                     Together {shared.when === 'today' ? '' : 'tomorrow '}
-                    {hm(shared.window.start)}–{hm(shared.window.end)}
+                    {formatClock(shared.window.start)}–{formatClock(shared.window.end)}
                   </ThemedText>
                 ) : null}
               </View>
             </View>
             <View style={styles.flex}>
-              {f.theirLevel === 'private' ? null  : (
-                <DayBar blocks={toBlocks(f.slots)} nowMin={nowMin} label={`${f.displayName}'s day`} />
+              {f.theirLevel === 'private' ? null : (
+                <DayBar blocks={busyBlocks(f.slots, today)} nowMin={nowMin} label={`${f.displayName}'s day`} />
               )}
             </View>
           </Pressable>
@@ -248,7 +205,7 @@ function Roster({ friends, now, onOpen, mineEvents }: { friends: Friend[]; now: 
   );
 }
 
-export default function FriendsScreen() {
+export function FriendsScreen() {
   const params = useLocalSearchParams<{ friend?: string }>();
   const data = useFriends();
   const schedule = useClassEvents();
@@ -350,22 +307,3 @@ export default function FriendsScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1, gap: Spacing.half },
-  pad: { padding: Spacing.four },
-  searchWrap: { position: 'relative', zIndex: 30 },
-  field: { minHeight: TouchTarget + Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingLeft: Spacing.four, borderRadius: Radius.pill, borderWidth: 1, ...Elevation.card },
-  input: { flex: 1, minHeight: TouchTarget, ...Typography.body, outlineStyle: 'none' } as object,
-  iconBtn: { width: TouchTarget, height: TouchTarget, alignItems: 'center', justifyContent: 'center' },
-  result: { minHeight: TouchTarget + Spacing.three, flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingHorizontal: Spacing.three, paddingVertical: Spacing.one },
-  doneChip: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  roster: { padding: Spacing.three, gap: Spacing.one },
-  rosterHead: { paddingBottom: Spacing.three },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: TouchTarget + Spacing.three, paddingVertical: Spacing.two },
-  rowStack: { flexDirection: 'column', alignItems: 'stretch', gap: Spacing.two },
-  friendRow: { borderTopWidth: StyleSheet.hairlineWidth },
-  who: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, width: Size.rosterName },
-  axis: { height: Spacing.three, position: 'relative' },
-  tick: { position: 'absolute' },
-});

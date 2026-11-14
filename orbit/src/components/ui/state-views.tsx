@@ -1,9 +1,10 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+
+import { styles } from './state-views.styles';
 
 type EmptyProps = { title: string; message: string; actionLabel?: string; onAction?: () => void };
 
@@ -42,9 +43,3 @@ export function ErrorState({ message, onRetry }: ErrorProps) {
     </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { alignItems: 'center', paddingVertical: Spacing.four },
-  text: { textAlign: 'center' },
-  action: { marginTop: Spacing.two },
-});

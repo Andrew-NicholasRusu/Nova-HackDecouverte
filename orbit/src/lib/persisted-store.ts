@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Snapshot<T> = { value: T; ready: boolean };
 

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Animated, type DimensionValue, type ViewStyle } from 'react-native';
 
-import { Motion, Radius } from '@/constants/theme';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { useTheme } from '@/hooks/use-theme';
+import { Motion, Radius } from '@/styles/theme';
 
 type Props = { width?: DimensionValue; height?: number; style?: ViewStyle };
 

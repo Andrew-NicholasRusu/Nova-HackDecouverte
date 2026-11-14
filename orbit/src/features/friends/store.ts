@@ -4,40 +4,12 @@
  * and sharing levels server-side.
  */
 
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 
-import { supabase } from '@/lib/supabase';
-import type { ClassKind, RecurringSlot, Weekday } from '@/features/schedule/model';
-
-export type SharingLevel = 'private' | 'availability' | 'full';
-
-export type StudentSummary = {
-  id: string;
-  avatarUrl?: string | null;
-  username: string;
-  displayName: string;
-  campus: 'SGW' | 'LOY' | null;
-};
-
-/** A friend's class as we're allowed to see it. Course fields only exist with 'full' sharing. */
-export type FriendSlot = RecurringSlot & {
-  courseCode?: string;
-  title?: string;
-  kind?: ClassKind;
-  buildingCode?: string;
-  room?: string;
-};
-
-export type Friend = StudentSummary & {
-  friendshipId: string;
-  /** What they share with me. */
-  theirLevel: SharingLevel;
-  /** What I share with them. */
-  myLevel: SharingLevel;
-  slots: FriendSlot[];
-};
-
-export type FriendRequest = { friendshipId: string; student: StudentSummary; createdAt: string };
+import type { Campus, ClassKind, FriendRequestResult, SharingLevel, Weekday } from '@/data/enums';
+import type { Friend, FriendRequest, FriendSlot, StudentSummary } from '@/data/types';
+import { createStore } from '@/lib/store';
+import { onUserChange, supabase, toUserError } from '@/lib/supabase';
 
 type Data = { friends: Friend[]; incoming: FriendRequest[]; outgoing: FriendRequest[] };
 export type FriendsState =
@@ -45,29 +17,13 @@ export type FriendsState =
   | ({ status: 'error'; error: string } & Data);
 
 const EMPTY: Data = { friends: [], incoming: [], outgoing: [] };
-let state: FriendsState = { status: 'idle', ...EMPTY };
-const listeners = new Set<() => void>();
-const setState = (next: FriendsState) => {
-  state = next;
-  listeners.forEach((l) => l());
-};
+const store = createStore<FriendsState>({ status: 'idle', ...EMPTY });
+onUserChange(() => store.set({ status: 'idle', ...EMPTY }));
 
-let currentUserId: string | undefined;
-supabase.auth.onAuthStateChange((_e, session) => {
-  if (session?.user.id !== currentUserId) {
-    currentUserId = session?.user.id;
-    setState({ status: 'idle', ...EMPTY });
-  }
-});
+const friendlyError = (error: { code?: string; message: string }) =>
+  toUserError(error, 'Friends tables are missing. Run supabase/migrations/20261114020000_friends.sql in the Supabase SQL editor.');
 
-function friendlyError(error: { code?: string; message: string }) {
-  if (error.code === 'PGRST205' || error.code === 'PGRST202' || error.code === '42P01') {
-    return 'Friends tables are missing. Run supabase/migrations/20261114020000_friends.sql in the Supabase SQL editor.';
-  }
-  return error.message;
-}
-
-type ProfileRow = { id: string; username: string | null; display_name: string; avatar_url?: string | null; preferred_campus: 'SGW' | 'LOY' | null };
+type ProfileRow = { id: string; username: string | null; display_name: string; avatar_url?: string | null; preferred_campus: Campus | null };
 const toStudent = (p: ProfileRow): StudentSummary => ({
   id: p.id,
   avatarUrl: p.avatar_url ?? null,
@@ -109,10 +65,11 @@ export async function loadFriends() {
   const { data: auth } = await supabase.auth.getUser();
   const me = auth.user?.id;
   if (!me) return;
-  setState({ ...state, status: 'loading' } as FriendsState);
+  const { friends, incoming, outgoing } = store.get();
+  store.set({ status: 'loading', friends, incoming, outgoing });
 
   const fail = (error: { code?: string; message: string }) =>
-    setState({ status: 'error', error: friendlyError(error), friends: state.friends, incoming: state.incoming, outgoing: state.outgoing });
+    store.set({ status: 'error', error: friendlyError(error), friends, incoming, outgoing });
 
   const [ships, perms, avail] = await Promise.all([
     supabase.from('friendships').select('id, requester_id, addressee_id, status, created_at'),
@@ -158,18 +115,11 @@ export async function loadFriends() {
     }
   }
   data.friends.sort((a, b) => a.displayName.localeCompare(b.displayName));
-  setState({ status: 'ready', ...data });
+  store.set({ status: 'ready', ...data });
 }
 
 export function useFriends() {
-  const snapshot = useSyncExternalStore(
-    (l) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
-    () => state,
-    () => state,
-  );
+  const snapshot = store.useSnapshot();
   useEffect(() => {
     if (snapshot.status === 'idle') void loadFriends();
   }, [snapshot.status]);
@@ -192,11 +142,33 @@ export async function searchStudents(q: string): Promise<StudentSummary[]> {
   return (rows as ProfileRow[]).map(toStudent);
 }
 
-/** Returns 'sent' | 'accepted' | 'already_sent' | 'already_friends'. */
-export async function sendFriendRequest(target: string): Promise<string> {
+type SearchState = { status: 'idle' | 'loading' | 'error'; results: StudentSummary[]; error: string };
+
+/** Suggest-as-you-type student search: debounced, ignores queries under 2 characters. */
+export function useStudentSearch(query: string): SearchState {
+  const q = query.trim();
+  const [state, setState] = useState<SearchState>({ status: 'idle', results: [], error: '' });
+  useEffect(() => {
+    if (q.length < 2) return;
+    let cancelled = false;
+    const id = setTimeout(() => {
+      setState((p) => ({ ...p, status: 'loading' }));
+      searchStudents(q)
+        .then((results) => !cancelled && setState({ status: 'idle', results, error: '' }))
+        .catch((e: Error) => !cancelled && setState((p) => ({ ...p, status: 'error', error: e.message })));
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
+  }, [q]);
+  return state;
+}
+
+export async function sendFriendRequest(target: string): Promise<FriendRequestResult> {
   const result = await run(supabase.rpc('send_friend_request', { target }));
   await loadFriends();
-  return result as string;
+  return result as FriendRequestResult;
 }
 
 export async function respondToRequest(friendshipId: string, accept: boolean) {
@@ -213,6 +185,11 @@ export async function removeFriendship(friendshipId: string) {
 export async function blockStudent(target: string) {
   await run(supabase.rpc('block_user', { target }));
   await loadFriends();
+}
+
+/** Applies one sharing level to every friend. */
+export async function setSharingLevelForAll(friends: Friend[], level: SharingLevel) {
+  await Promise.all(friends.map((f) => setSharingLevel(f.id, level)));
 }
 
 export async function setSharingLevel(friendId: string, level: SharingLevel) {

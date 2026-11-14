@@ -65,15 +65,20 @@ Before the first deploy, run `supabase/apply-pending.sql` in the Supabase SQL ed
 ## Project layout
 
 ```
-orbit/src/app          screens (Expo Router) and API routes
-orbit/src/features     schedule, friends, live, brain (dashboard plan), navigator, search, notifications, profile
-orbit/src/components   shared UI (cards, popovers, dropdowns, floor plan viewer)
-orbit/src/constants    design tokens (theme.ts), floor plan data
-orbit/src/lib          routing, geo, overlays, persisted state, Supabase client
-supabase/migrations    database schema and policies
+orbit/src/app          thin Expo Router files only: (auth)/login, (auth)/logged-out, (app)/ tabs, api/
+orbit/src/features     one folder per module: its logic, store and components/ (schedule, friends, live,
+                       brain, navigator, search, notifications, profile, auth, settings, dashboard)
+orbit/src/components   shared UI: ui/ (buttons, cards, popovers) and layout/ (screen, tabs, auth frame)
+orbit/src/data         constants, enums, types, labels and static datasets (buildings, floor plans, shortcuts)
+orbit/src/styles       design tokens (theme.ts), fonts, navigation theme, global.css
+orbit/src/lib          generic helpers: store, format, geo, overlays, persisted state, Supabase client
+orbit/src/hooks        shared React hooks
 ```
 
-All colours, sizes, type and motion come from `orbit/src/constants/theme.ts`.
+Every component keeps its StyleSheet in a sibling `*.styles.ts`. Signed-out users only reach `/login` and
+`/logged-out`; signed-in users only reach the tabs (guarded in `src/app/_layout.tsx`).
+
+All colours, sizes, type and motion come from `orbit/src/styles/theme.ts`.
 
 ## Data and privacy
 

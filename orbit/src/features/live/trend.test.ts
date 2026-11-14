@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { LiveReport } from './confidence.ts';
+import type { LiveReport } from '../../data/types.ts';
 import { trendFor } from './trend.ts';
 
 const now = new Date('2026-03-04T12:00:00');

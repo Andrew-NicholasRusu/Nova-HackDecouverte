@@ -4,30 +4,9 @@
  * (repeat submissions don't stack), number of distinct contributors, and agreement.
  */
 
-export type LiveLevel = 0 | 1 | 2 | 3;
-
-export type LiveReport = {
-  level: LiveLevel;
-  createdAt: Date;
-  /** Same number = same student (per location); not linkable to a profile. */
-  contributor: number;
-  mine: boolean;
-};
-
-export type Confidence = 'none' | 'low' | 'medium' | 'high';
-
-export type LiveEstimate = {
-  /** Rounded weighted estimate, null when there are no usable reports. */
-  level: LiveLevel | null;
-  confidence: Confidence;
-  reports: number;
-  contributors: number;
-  /** Minutes since the newest report. */
-  newestMinutes: number | null;
-};
-
-export const REPORT_MAX_AGE_MIN = 45;
-const HALF_LIFE_MIN = 15;
+import { REPORT_HALF_LIFE_MIN, REPORT_MAX_AGE_MIN } from '../../data/constants.ts';
+import type { LiveLevel } from '../../data/enums.ts';
+import type { LiveEstimate, LiveReport } from '../../data/types.ts';
 
 export function calculateReportConfidence(reports: LiveReport[], now: Date): LiveEstimate {
   const ageMin = (r: LiveReport) => (now.getTime() - r.createdAt.getTime()) / 60_000;
@@ -44,7 +23,7 @@ export function calculateReportConfidence(reports: LiveReport[], now: Date): Liv
     return { level: null, confidence: 'none', reports: 0, contributors: 0, newestMinutes: null };
   }
 
-  const weighted = votes.map((r) => ({ level: r.level, w: Math.pow(0.5, Math.max(0, ageMin(r)) / HALF_LIFE_MIN) }));
+  const weighted = votes.map((r) => ({ level: r.level, w: Math.pow(0.5, Math.max(0, ageMin(r)) / REPORT_HALF_LIFE_MIN) }));
   const total = weighted.reduce((s, v) => s + v.w, 0);
   const estimate = weighted.reduce((s, v) => s + v.w * v.level, 0) / total;
   const spread = Math.sqrt(weighted.reduce((s, v) => s + v.w * (v.level - estimate) ** 2, 0) / total);

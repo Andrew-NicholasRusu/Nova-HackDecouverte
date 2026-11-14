@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useSyncExternalStore, type RefObject } from 'react';
+import { type RefObject, useCallback, useEffect, useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 
 /** Only one overlay (menu, popover or search dropdown) is open at any moment; opening one closes the rest. */

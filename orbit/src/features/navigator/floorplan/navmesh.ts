@@ -1,17 +1,8 @@
 import navmesh from '@/assets/floor_plan/navmesh/mb.json';
+import { MOLSON_FLOORS } from '@/data/floorplans';
+import type { Floor, Room, Route } from '@/data/types';
 
-import { buildGraph, planRoute, type Route } from './route';
-
-export type Room = {
-  /** Room code as used in the floor SVG labels, e.g. "1.130". */
-  code: string;
-  /** Display/search label, e.g. "MB-1.130". */
-  label: string;
-  floor: string;
-  nodeId: string;
-  x: number;
-  y: number;
-};
+import { buildGraph, planRoute } from './route';
 
 export type Edge = { x1: number; y1: number; x2: number; y2: number };
 
@@ -36,6 +27,16 @@ export function getOtherRooms(floorId: string): Room[] {
   return allRooms
     .filter((r) => r.floor !== floorId)
     .sort((a, b) => a.floor.localeCompare(b.floor, undefined, { numeric: true }) || byCode(a, b));
+}
+
+/** Every Molson room, sorted by floor then code. */
+export const ALL_ROOMS = getOtherRooms('');
+
+/** A room by its label ("MB-1.130") and the floor plan it is on. */
+export function findRoom(label: string): { room: Room; floor: Floor } | null {
+  const room = allRooms.find((r) => r.label === label);
+  const floor = room && MOLSON_FLOORS.find((f) => f.id === room.floor);
+  return room && floor ? { room, floor } : null;
 }
 
 /** Navmesh edges leaving a room: room→door links, then door→hallway links. */

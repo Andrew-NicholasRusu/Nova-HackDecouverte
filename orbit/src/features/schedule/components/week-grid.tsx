@@ -1,12 +1,15 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { Opacity, Radius, Size, Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import type { ClassEvent, Occurrence } from '@/data/types';
+import { occurrencesOnDate } from '@/features/schedule/engine';
+import { formatDateLabel } from '@/features/schedule/format';
+import { addDays, courseColor } from '@/features/schedule/model';
 import { useTheme } from '@/hooks/use-theme';
+import { minutesOfDay } from '@/lib/format';
+import { Opacity, Size } from '@/styles/theme';
 
-import { occurrencesOnDate, type Occurrence } from './engine';
-import { formatDateLabel } from './format';
-import { addDays, courseColor, type ClassEvent } from './model';
+import { styles } from './week-grid.styles';
 
 type Props = {
   weekStart: string;
@@ -18,7 +21,7 @@ type Props = {
   onOpenDay: (date: string) => void;
 };
 
-const mins = (d: Date) => d.getHours() * 60 + d.getMinutes();
+const mins = minutesOfDay;
 const hourLabel = (h: number) => `${((h + 11) % 12) + 1} ${h < 12 ? 'AM' : 'PM'}`;
 
 /** Lays out one day's occurrences side by side when they overlap. */
@@ -130,16 +133,3 @@ export function WeekGrid({ weekStart, events, now, today, conflictIds, onOpen, o
   );
 }
 
-const GUTTER = Spacing.six - Spacing.three;
-const styles = StyleSheet.create({
-  wrap: { borderRadius: Radius.xl, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', padding: Spacing.two },
-  row: { flexDirection: 'row' },
-  gutter: { width: GUTTER, position: 'relative' },
-  hour: { position: 'absolute', right: Spacing.two, transform: [{ translateY: -Spacing.two }] },
-  head: { flex: 1, alignItems: 'center', paddingVertical: Spacing.two, borderRadius: Radius.md },
-  col: { flex: 1, position: 'relative', borderLeftWidth: StyleSheet.hairlineWidth },
-  line: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth },
-  block: { position: 'absolute', borderRadius: Radius.sm, paddingHorizontal: Spacing.one + Spacing.half, paddingVertical: Spacing.half, overflow: 'hidden' },
-  code: {},
-  now: { position: 'absolute', left: 0, right: 0, height: 2 },
-});

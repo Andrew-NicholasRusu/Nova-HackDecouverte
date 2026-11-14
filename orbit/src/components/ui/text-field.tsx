@@ -1,8 +1,9 @@
-import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { TextInput, type TextInputProps, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing, TouchTarget, Typography } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+
+import { styles } from './text-field.styles';
 
 type Props = TextInputProps & { label: string };
 
@@ -26,14 +27,3 @@ export function TextField({ label, style, ...rest }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: { gap: Spacing.one },
-  input: {
-    minHeight: TouchTarget,
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.three,
-    ...Typography.body,
-  },
-});

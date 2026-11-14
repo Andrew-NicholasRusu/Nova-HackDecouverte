@@ -1,15 +1,15 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Icon, type IconName } from '@/components/ui/icon';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Elevation, FixedColors, Opacity, Radius, Spacing, TouchTarget } from '@/constants/theme';
+import { Icon } from '@/components/ui/icon';
+import { ThemedText } from '@/components/ui/themed-text';
+import type { IconName, Suggestion } from '@/data/types';
+import { useBrain } from '@/features/brain/use-brain';
 import { useLayout } from '@/hooks/use-layout';
+import { FixedColors, Opacity } from '@/styles/theme';
 
-import type { Suggestion } from './plan';
-import { useBrain } from './use-brain';
+import { styles, toneColor } from './plan-card.styles';
 
 const ICON: Record<Suggestion['kind'], IconName> = {
   leave: 'directions-walk',
@@ -17,13 +17,6 @@ const ICON: Record<Suggestion['kind'], IconName> = {
   study: 'chair',
   friend: 'group',
 };
-
-const TONE_COLOR = {
-  success: FixedColors.successOnShell,
-  warning: FixedColors.warningOnShell,
-  danger: FixedColors.dangerOnShell,
-  neutral: FixedColors.shellMuted,
-} as const;
 
 /**
  * The dashboard brain: one plan across Schedule, Map, Campus Live and Friends. Every suggestion
@@ -77,7 +70,7 @@ export function PlanCard() {
                 <ThemedText type="smallBold" style={styles.tileTitle} numberOfLines={2}>
                   {s.title}
                 </ThemedText>
-                <ThemedText type="caption" style={{ color: TONE_COLOR[s.tone] }} numberOfLines={2}>
+                <ThemedText type="caption" style={{ color: toneColor[s.tone] }} numberOfLines={2}>
                   {s.detail}
                 </ThemedText>
               </View>
@@ -89,46 +82,3 @@ export function PlanCard() {
     </View>
   );
 }
-
-export function PlanCardSkeleton() {
-  return (
-    <View style={styles.card}>
-      <Skeleton width="30%" height={16} />
-      <Skeleton width="60%" height={30} />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: FixedColors.shell,
-    borderRadius: Radius.xl,
-    padding: Spacing.four,
-    gap: Spacing.four,
-    borderWidth: 1,
-    borderColor: FixedColors.shellBorder,
-    ...Elevation.raised,
-  },
-  head: { gap: Spacing.three },
-  headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headText: { gap: Spacing.one, flexShrink: 1 },
-  headline: { color: FixedColors.shellText },
-  sub: { color: FixedColors.shellMuted },
-  tiles: { gap: Spacing.two },
-  tilesRow: { flexDirection: 'row' },
-  tile: {
-    minHeight: TouchTarget + Spacing.four,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    padding: Spacing.three,
-    borderRadius: Radius.lg,
-    backgroundColor: FixedColors.shellRaised,
-    borderWidth: 1,
-    borderColor: FixedColors.shellBorder,
-  },
-  tileFlex: { flex: 1 },
-  tileIcon: { width: TouchTarget, height: TouchTarget, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: FixedColors.shellHover },
-  tileText: { flex: 1, gap: Spacing.half },
-  tileTitle: { color: FixedColors.shellText },
-});

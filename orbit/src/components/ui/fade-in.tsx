@@ -1,8 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Animated, type ViewStyle } from 'react-native';
 
-import { Motion } from '@/constants/theme';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
+import { Motion } from '@/styles/theme';
 
 /** Short opacity fade on mount; renders instantly under reduced motion. */
 export function FadeIn({ children, delay = 0, style }: { children: ReactNode; delay?: number; style?: ViewStyle }) {

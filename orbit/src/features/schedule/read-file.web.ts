@@ -1,12 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 
-import type { ReadProgress, ReadResult } from './read-file.types';
-
-const MAX_BYTES = 15_000_000;
-
-const TESSERACT = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+import { PDF_MAX_PAGES, READER_SCRIPTS, SCHEDULE_FILE_MAX_BYTES } from '@/data/constants';
+import type { ReadProgress, ReadResult } from '@/data/types';
 
 const scripts = new Map<string, Promise<void>>();
 /** Loads an OCR/PDF library on first use only, so it never weighs on app start-up. */
@@ -48,7 +43,7 @@ type PdfGlobal = {
 const g = () => window as unknown as { Tesseract?: TesseractGlobal; pdfjsLib?: PdfGlobal };
 
 async function ocr(image: Blob | HTMLCanvasElement, onProgress?: ReadProgress, label = 'Reading the text in your image') {
-  await loadScript(TESSERACT);
+  await loadScript(READER_SCRIPTS.tesseract);
   const { data } = await g().Tesseract!.recognize(image, 'eng', {
     logger: (m) => m.status === 'recognizing text' && onProgress?.(label, m.progress),
   });
@@ -57,11 +52,11 @@ async function ocr(image: Blob | HTMLCanvasElement, onProgress?: ReadProgress, l
 
 /** Text layer of a PDF, line by line (items grouped by their vertical position). */
 async function pdfText(buffer: ArrayBuffer, onProgress?: ReadProgress): Promise<{ text: string; ocr: boolean }> {
-  await loadScript(PDFJS);
+  await loadScript(READER_SCRIPTS.pdfjs);
   const pdfjs = g().pdfjsLib!;
-  pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  pdfjs.GlobalWorkerOptions.workerSrc = READER_SCRIPTS.pdfjsWorker;
   const doc = await pdfjs.getDocument({ data: buffer }).promise;
-  const pages = Math.min(doc.numPages, 6);
+  const pages = Math.min(doc.numPages, PDF_MAX_PAGES);
   let text = '';
   for (let n = 1; n <= pages; n++) {
     onProgress?.(`Reading PDF page ${n} of ${pages}`, n / pages);
@@ -100,7 +95,7 @@ export async function readScheduleFile(onProgress?: ReadProgress): Promise<ReadR
   const asset = result.assets[0];
   const file: Blob = asset.file ?? (await fetch(asset.uri).then((r) => r.blob()));
   const name = asset.name;
-  if (file.size > MAX_BYTES) throw new Error('That file is too large (max 15 MB).');
+  if (file.size > SCHEDULE_FILE_MAX_BYTES.web) throw new Error('That file is too large (max 15 MB).');
 
   if (/\.(png|jpe?g|webp|gif|bmp)$/i.test(name) || file.type.startsWith('image/')) {
     if (/\.hei[cf]$/i.test(name)) throw new Error('HEIC photos are not supported. Take a screenshot or export as JPG or PNG.');

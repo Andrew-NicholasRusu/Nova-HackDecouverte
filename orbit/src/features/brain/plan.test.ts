@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { ClassEvent } from '../schedule/model.ts';
-import { buildPlan, type Place } from './plan.ts';
+import type { ClassEvent, Place } from '../../data/types.ts';
+import { buildPlan } from './plan.ts';
 
 const cls = (over: Partial<ClassEvent>): ClassEvent => ({
   id: '1', source: 'manual', courseCode: 'COMP 352', title: '', section: '', kind: 'lecture',

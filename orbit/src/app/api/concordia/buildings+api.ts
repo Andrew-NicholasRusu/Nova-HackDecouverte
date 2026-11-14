@@ -1,5 +1,5 @@
-import { ConcordiaApiError } from '@/server/concordia/client';
 import { fetchBuildings } from '@/server/concordia/buildings';
+import { ConcordiaApiError } from '@/server/concordia/client';
 
 // GET /api/concordia/buildings — proxies Concordia Open Data so the API key stays on the server.
 export async function GET() {

@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { calculateReportConfidence, type LiveLevel, type LiveReport } from './confidence.ts';
+import type { LiveLevel } from '../../data/enums.ts';
+import type { LiveReport } from '../../data/types.ts';
+import { calculateReportConfidence } from './confidence.ts';
 
 const now = new Date('2026-11-14T17:00:00Z');
 const r = (level: LiveLevel, minutesAgo: number, contributor: number): LiveReport => ({

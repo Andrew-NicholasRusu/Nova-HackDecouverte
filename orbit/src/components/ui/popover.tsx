@@ -1,9 +1,11 @@
-import { useEffect, useId, useRef, useState, type ComponentRef, type ReactNode } from 'react';
+import { type ComponentRef, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { Elevation, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useOverlay } from '@/lib/overlay';
+import { Spacing } from '@/styles/theme';
+
+import { styles } from './popover.styles';
 
 type Props = {
   /** Draws the button that opens the popover. */
@@ -67,7 +69,3 @@ export function Popover({ renderTrigger, children, width = 320, onClose }: Props
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  panel: { position: 'absolute', borderRadius: Radius.xl, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', ...Elevation.raised },
-});

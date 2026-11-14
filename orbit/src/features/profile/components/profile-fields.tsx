@@ -1,23 +1,20 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Chip } from '@/components/ui/chip';
 import { TextField } from '@/components/ui/text-field';
-import { Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import { CAMPUSES } from '@/data/enums';
+import { CAMPUS_NAME } from '@/data/labels';
+import type { ProfileEdit, ProfileErrors } from '@/data/types';
 
-import type { Campus, ProfileEdit, validateProfile } from './use-profile';
+import { styles } from './profile-fields.styles';
 
 type Props = {
   value: ProfileEdit;
   onChange: (next: ProfileEdit) => void;
-  errors: ReturnType<typeof validateProfile>;
+  errors: ProfileErrors;
   showBio?: boolean;
 };
-
-const CAMPUSES: { id: Campus; label: string }[] = [
-  { id: 'SGW', label: 'Sir George Williams' },
-  { id: 'LOY', label: 'Loyola' },
-];
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
@@ -64,10 +61,10 @@ export function ProfileFields({ value, onChange, errors, showBio = false }: Prop
         <View style={styles.chips}>
           {CAMPUSES.map((c) => (
             <Chip
-              key={c.id}
-              label={c.label}
-              selected={value.preferred_campus === c.id}
-              onPress={() => set('preferred_campus', c.id)}
+              key={c}
+              label={CAMPUS_NAME[c]}
+              selected={value.preferred_campus === c}
+              onPress={() => set('preferred_campus', c)}
             />
           ))}
         </View>
@@ -88,10 +85,3 @@ export function ProfileFields({ value, onChange, errors, showBio = false }: Prop
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  fields: { gap: Spacing.three },
-  field: { gap: Spacing.one },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  bio: { minHeight: 88, paddingTop: Spacing.two, textAlignVertical: 'top' },
-});

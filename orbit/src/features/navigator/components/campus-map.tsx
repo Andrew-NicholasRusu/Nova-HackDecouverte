@@ -1,13 +1,17 @@
-import { Image } from 'expo-image';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { Elevation, FixedColors, Opacity, Radius, Spacing, TouchTarget } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import { FALLBACK_BUILDINGS } from '@/data/buildings';
+import { MAP_TILE_SIZE as TILE } from '@/data/constants';
+import type { Campus } from '@/data/enums';
+import { CAMPUS_NAME } from '@/data/labels';
+import type { Building } from '@/data/types';
 import { useTheme } from '@/hooks/use-theme';
+import { FixedColors, Opacity, Spacing, TouchTarget } from '@/styles/theme';
 
-import { FALLBACK_BUILDINGS } from './fallback-buildings';
-import type { Building } from './use-buildings';
+import { PIN, styles } from './campus-map.styles';
 
 type Props = {
   buildings: Building[];
@@ -21,11 +25,8 @@ type Props = {
   onSelect?: (code: string) => void;
 };
 
-const PIN = Spacing.three;
-const TILE = 256;
 const MAX_ZOOM = 18;
 const MIN_ZOOM = 13;
-const LABEL_WIDTH = 88;
 
 /** Web-mercator world pixel for a coordinate at zoom `z` (256 px tiles). */
 const worldX = (lon: number, z: number) => ((lon + 180) / 360) * TILE * 2 ** z;
@@ -86,7 +87,7 @@ export function CampusMap({ buildings, campus, height, selected, next, here, onS
   return (
     <View
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      accessibilityLabel={`${campus === 'LOY' ? 'Loyola' : 'Sir George Williams'} campus map`}
+      accessibilityLabel={`${CAMPUS_NAME[campus as Campus] ?? CAMPUS_NAME.SGW} campus map`}
       style={[styles.map, { height, backgroundColor: theme.backgroundSelected, borderColor: theme.border }]}>
       {view?.tiles.map((t) => (
         <Image key={t.key} source={{ uri: t.uri }} style={[styles.tile, { left: t.left, top: t.top }]} accessibilityElementsHidden />
@@ -137,16 +138,3 @@ export function CampusMap({ buildings, campus, height, selected, next, here, onS
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  map: { borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', position: 'relative' },
-  tile: { position: 'absolute', width: TILE, height: TILE },
-  route: { position: 'absolute', height: 4, borderRadius: Radius.pill, opacity: 0.85 },
-  pinWrap: { position: 'absolute', width: TouchTarget, height: TouchTarget, alignItems: 'center', justifyContent: 'center' },
-  pin: { width: PIN, height: PIN, borderRadius: Radius.pill, borderWidth: 2, ...Elevation.card },
-  label: { position: 'absolute', top: TouchTarget / 2 + Spacing.one, left: (TouchTarget - LABEL_WIDTH) / 2, width: LABEL_WIDTH, paddingVertical: Spacing.half, borderRadius: Radius.pill, alignItems: 'center' },
-  labelQuiet: { backgroundColor: FixedColors.heroGlass, width: LABEL_WIDTH / 2, left: (TouchTarget - LABEL_WIDTH / 2) / 2 },
-  labelText: { color: FixedColors.shellText },
-  credit: { position: 'absolute', right: Spacing.one, bottom: Spacing.one, backgroundColor: FixedColors.heroGlass, paddingHorizontal: Spacing.one, borderRadius: Radius.sm },
-  creditText: { color: FixedColors.shellText, fontSize: 10, lineHeight: 12 },
-});

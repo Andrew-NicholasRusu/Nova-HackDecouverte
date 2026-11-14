@@ -1,8 +1,8 @@
-import { MaterialIcons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
+import { MaterialIcons } from '@expo/vector-icons';
 
-import { IconSize, type ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { IconSize, type ThemeColor } from '@/styles/theme';
 
 export type IconName = ComponentProps<typeof MaterialIcons>['name'];
 

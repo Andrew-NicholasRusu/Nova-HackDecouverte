@@ -1,7 +1,9 @@
-import { StyleSheet, Text, type TextProps } from 'react-native';
+import { Text, type TextProps } from 'react-native';
 
-import { Fonts, ThemeColor, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { ThemeColor } from '@/styles/theme';
+
+import { styles } from './themed-text.styles';
 
 export type ThemedTextProps = TextProps & {
   type?:
@@ -26,21 +28,3 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
 
   return <Text style={[{ color }, styles[type], style]} {...rest} />;
 }
-
-const styles = StyleSheet.create({
-  display: Typography.display,
-  displaySmall: Typography.displaySmall,
-  stat: Typography.stat,
-  title: Typography.title,
-  subtitle: Typography.subtitle,
-  heading: Typography.heading,
-  default: Typography.body,
-  small: Typography.small,
-  smallBold: Typography.smallBold,
-  caption: Typography.caption,
-  link: Typography.link,
-  code: {
-    ...Typography.caption,
-    fontFamily: Fonts.mono,
-  },
-});

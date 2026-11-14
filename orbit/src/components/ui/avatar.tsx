@@ -1,10 +1,12 @@
-import { Image } from 'expo-image';
 import { useState } from 'react';
+import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { AvatarSize, DotSize, Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { AvatarSize } from '@/styles/theme';
+
+import { styles } from './avatar.styles';
 
 type Props = {
   name: string;
@@ -58,16 +60,3 @@ export function Avatar({ name, uri, size = 'md', presence, onDark }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  base: { alignItems: 'center', justifyContent: 'center' },
-  dot: {
-    position: 'absolute',
-    right: -Spacing.half,
-    bottom: -Spacing.half,
-    width: DotSize + Spacing.one,
-    height: DotSize + Spacing.one,
-    borderRadius: DotSize,
-    borderWidth: 2,
-  },
-});

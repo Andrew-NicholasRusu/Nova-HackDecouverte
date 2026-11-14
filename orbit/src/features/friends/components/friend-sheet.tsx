@@ -1,20 +1,23 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { Sheet } from '@/components/ui/sheet';
-import { Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import type { SharingLevel } from '@/data/enums';
+import { CAMPUS_NAME, SHARING_HELP, SHARING_LABEL } from '@/data/labels';
+import type { ClassEvent, Friend } from '@/data/types';
+import { describeFriendNow } from '@/features/friends/describe';
+import { blockStudent, removeFriendship, setSharingLevel } from '@/features/friends/store';
 import { calculateSharedAvailability } from '@/features/schedule/availability';
 import { occurrencesOnDate } from '@/features/schedule/engine';
-import { formatDuration } from '@/features/schedule/format';
-import { addDays, toLocalDate, type ClassEvent } from '@/features/schedule/model';
+import { addDays, toLocalDate } from '@/features/schedule/model';
+import { formatClock, formatDuration } from '@/lib/format';
 
-import { describeFriendNow, hm, SHARING_HELP, SHARING_LABEL } from './describe';
-import { blockStudent, removeFriendship, setSharingLevel, type Friend, type SharingLevel } from './store';
+import { styles } from './friend-sheet.styles';
 
 type Props = { friend: Friend; myEvents: ClassEvent[]; now: Date; onClose: () => void };
 
@@ -51,7 +54,7 @@ export function FriendSheet({ friend, myEvents, now, onClose }: Props) {
         <Avatar name={friend.displayName} uri={friend.avatarUrl} size="xl" />
         <ThemedText type="small" themeColor="textSecondary">
           @{friend.username}
-          {friend.campus ? ` · ${friend.campus === 'SGW' ? 'Sir George Williams' : 'Loyola'}` : ''}
+          {friend.campus ? ` · ${CAMPUS_NAME[friend.campus]}` : ''}
         </ThemedText>
         <ThemedText type="default" themeColor={status.free ? 'success' : status.free === false ? 'warning' : 'textSecondary'}>
           {status.text}
@@ -79,7 +82,7 @@ export function FriendSheet({ friend, myEvents, now, onClose }: Props) {
                 ) : (
                   windows.map((w) => (
                     <ThemedText key={w.start.toISOString()} type="small">
-                      {hm(w.start)}–{hm(w.end)} · {formatDuration(w.minutes)}
+                      {formatClock(w.start)}–{formatClock(w.end)} · {formatDuration(w.minutes)}
                     </ThemedText>
                   ))
                 )}
@@ -151,10 +154,3 @@ export function FriendSheet({ friend, myEvents, now, onClose }: Props) {
     </Sheet>
   );
 }
-
-const styles = StyleSheet.create({
-  head: { gap: Spacing.one, alignItems: 'center' },
-  day: { gap: Spacing.half },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  danger: { gap: Spacing.two, marginTop: Spacing.two },
-});

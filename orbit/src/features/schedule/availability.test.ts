@@ -2,8 +2,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import type { RecurringSlot } from '../../data/types.ts';
 import { busyStatusAt, calculateSharedAvailability } from './availability.ts';
-import { atLocalTime, type RecurringSlot } from './model.ts';
+import { atLocalTime } from './model.ts';
 
 process.env.TZ = 'America/Toronto';
 

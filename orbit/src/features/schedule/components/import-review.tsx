@@ -1,20 +1,20 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Sheet } from '@/components/ui/sheet';
-import { Radius, Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import type { ClassEvent, ClassInput, ImportDraft } from '@/data/types';
+import { calculateScheduleConflicts } from '@/features/schedule/engine';
+import { formatDateLabel, formatDays } from '@/features/schedule/format';
+import { normalizeClassInput, validateClassInput } from '@/features/schedule/model';
+import { createClasses } from '@/features/schedule/store';
 import { useTheme } from '@/hooks/use-theme';
 
 import { ClassBlock } from './class-block';
 import { ClassForm } from './class-form';
-import { calculateScheduleConflicts } from './engine';
-import { formatDateLabel, formatDays } from './format';
-import type { ImportDraft } from './ics';
-import { normalizeClassInput, validateClassInput, type ClassEvent, type ClassInput } from './model';
-import { createClasses } from './store';
+import { styles } from './import-review.styles';
 
 type Props = {
   fileName: string;
@@ -191,20 +191,3 @@ export function ImportReview({ fileName, drafts, skipped, existing, onCancel, on
     </Sheet>
   );
 }
-
-const styles = StyleSheet.create({
-  item: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
-  check: {
-    width: 26,
-    height: 26,
-    marginTop: Spacing.three,
-    borderRadius: Radius.sm,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flex: { flex: 1, gap: Spacing.half },
-  excluded: { opacity: 0.45 },
-  note: { paddingLeft: Spacing.two },
-  footer: { width: '100%', maxWidth: 480 },
-});

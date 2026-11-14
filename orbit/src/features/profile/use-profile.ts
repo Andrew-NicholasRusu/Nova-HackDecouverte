@@ -1,35 +1,60 @@
-import { useEffect, useSyncExternalStore } from 'react';
+/**
+ * The signed-in student's profile (public.profiles): one shared store, validation and writes.
+ * Profile pictures are uploaded by `avatar.ts` in this folder.
+ */
 
+import { useEffect } from 'react';
+
+import { PROFILE_LIMITS, USERNAME_RE } from '@/data/constants';
+import type { Profile, ProfileEdit, ProfileErrors } from '@/data/types';
+import { useAuth } from '@/features/auth/auth-provider';
+import { createStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/providers/auth-provider';
-
-export type Campus = 'SGW' | 'LOY';
-
-export type Profile = {
-  id: string;
-  username: string | null;
-  display_name: string;
-  bio: string | null;
-  avatar_url: string | null;
-  preferred_campus: Campus | null;
-};
-
-export type ProfileEdit = Pick<Profile, 'username' | 'display_name' | 'bio' | 'preferred_campus'>;
 
 const PROFILE_COLUMNS = 'id, username, display_name, bio, avatar_url, preferred_campus';
 
-export const USERNAME_RE = /^[a-z0-9_]{3,24}$/;
-
 /** Mirrors the DB checks on public.profiles. Returns field errors (empty = valid). */
-export function validateProfile(p: ProfileEdit): Partial<Record<keyof ProfileEdit, string>> {
-  const errors: Partial<Record<keyof ProfileEdit, string>> = {};
+export function validateProfile(p: ProfileEdit): ProfileErrors {
+  const errors: ProfileErrors = {};
   if (!p.username || !USERNAME_RE.test(p.username)) {
     errors.username = '3–24 characters: lowercase letters, numbers or _.';
   }
   if (!p.display_name.trim()) errors.display_name = 'Enter a name friends will recognise.';
-  else if (p.display_name.length > 60) errors.display_name = 'Keep it under 60 characters.';
-  if (p.bio && p.bio.length > 280) errors.bio = 'Keep it under 280 characters.';
+  else if (p.display_name.length > PROFILE_LIMITS.displayName) errors.display_name = `Keep it under ${PROFILE_LIMITS.displayName} characters.`;
+  if (p.bio && p.bio.length > PROFILE_LIMITS.bio) errors.bio = `Keep it under ${PROFILE_LIMITS.bio} characters.`;
   return errors;
+}
+
+/** A username guess from a display name: "Zoë Martin" → "zoe_martin". */
+export function suggestUsername(name: string) {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 24);
+}
+
+/** The editable fields of a profile (empty when there is none yet). */
+export function toProfileEdit(profile: Profile | null): ProfileEdit {
+  return {
+    display_name: profile?.display_name ?? '',
+    username: profile?.username ?? null,
+    bio: profile?.bio ?? null,
+    preferred_campus: profile?.preferred_campus ?? null,
+  };
+}
+
+/** True when the edit differs from the saved profile. */
+export function isProfileEdited(edit: ProfileEdit, profile: Profile | null) {
+  const saved = toProfileEdit(profile);
+  return (
+    edit.display_name !== saved.display_name ||
+    edit.username !== saved.username ||
+    (edit.bio ?? '') !== (saved.bio ?? '') ||
+    edit.preferred_campus !== saved.preferred_campus
+  );
 }
 
 type State =
@@ -37,41 +62,29 @@ type State =
   | { status: 'ready'; profile: Profile | null; userId?: string }
   | { status: 'error'; profile: Profile | null; userId?: string; error: string };
 
-let state: State = { status: 'idle', profile: null };
-const listeners = new Set<() => void>();
-const setState = (next: State) => {
-  state = next;
-  listeners.forEach((l) => l());
-};
+const store = createStore<State>({ status: 'idle', profile: null });
 
 async function load(userId: string) {
-  setState({ status: 'loading', profile: state.userId === userId ? state.profile : null, userId });
+  store.set({ status: 'loading', profile: store.get().userId === userId ? store.get().profile : null, userId });
   const { data, error } = await supabase
     .from('profiles')
     .select(PROFILE_COLUMNS)
     .eq('id', userId)
     .maybeSingle();
-  if (state.userId !== userId) return; // signed out meanwhile
-  if (error) setState({ status: 'error', profile: null, userId, error: error.message });
-  else setState({ status: 'ready', profile: data as Profile | null, userId });
+  if (store.get().userId !== userId) return; // signed out meanwhile
+  if (error) store.set({ status: 'error', profile: null, userId, error: error.message });
+  else store.set({ status: 'ready', profile: data as Profile | null, userId });
 }
 
 /** The signed-in student's profile, shared across screens. */
 export function useProfileState(): State {
   const { session } = useAuth();
   const userId = session?.user.id;
-  const snapshot = useSyncExternalStore(
-    (l) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
-    () => state,
-    () => state,
-  );
+  const snapshot = store.useSnapshot();
   useEffect(() => {
     if (!userId) {
-      if (state.userId) setState({ status: 'idle', profile: null });
-    } else if (state.userId !== userId || state.status === 'idle') {
+      if (store.get().userId) store.set({ status: 'idle', profile: null });
+    } else if (store.get().userId !== userId || store.get().status === 'idle') {
       void load(userId);
     }
   }, [userId]);
@@ -85,7 +98,7 @@ export function useProfile() {
 
 /** Writes a partial profile; creates the row first if the account never got one. */
 async function saveProfile(patch: Partial<Omit<Profile, 'id'>>): Promise<Profile> {
-  const userId = state.userId;
+  const userId = store.get().userId;
   if (!userId) throw new Error('Not signed in.');
   let res = await supabase.from('profiles').update(patch).eq('id', userId).select(PROFILE_COLUMNS);
   if (!res.error && res.data.length === 0) {
@@ -99,7 +112,7 @@ async function saveProfile(patch: Partial<Omit<Profile, 'id'>>): Promise<Profile
     throw new Error(res.error.message);
   }
   const profile = res.data[0] as Profile;
-  setState({ status: 'ready', profile, userId });
+  store.set({ status: 'ready', profile, userId });
   return profile;
 }
 
@@ -112,12 +125,13 @@ export async function updateProfile(edit: ProfileEdit) {
   });
 }
 
-/** Sets (or clears) the profile picture URL. The image itself is uploaded by `lib/avatar.ts`. */
+/** Sets (or clears) the profile picture URL. The image itself is uploaded by `avatar.ts`. */
 export async function setAvatarUrl(url: string | null) {
   await saveProfile({ avatar_url: url });
 }
 
 /** Try loading the profile again (after an error). */
 export function reloadProfile() {
-  if (state.userId) void load(state.userId);
+  const { userId } = store.get();
+  if (userId) void load(userId);
 }

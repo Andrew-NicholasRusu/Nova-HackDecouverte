@@ -1,6 +1,5 @@
-import type { LiveReport } from './confidence.ts';
-
-export type Trend = 'busier' | 'quieter' | 'steady';
+import type { Trend } from '../../data/enums.ts';
+import type { LiveReport } from '../../data/types.ts';
 
 const avg = (rs: LiveReport[]) => rs.reduce((s, r) => s + r.level, 0) / rs.length;
 
@@ -13,6 +12,3 @@ export function trendFor(reports: LiveReport[], now: Date): Trend | null {
   const d = avg(recent) - avg(older);
   return d >= 0.6 ? 'busier' : d <= -0.6 ? 'quieter' : 'steady';
 }
-
-/** Rough minutes in the line for each reported level. */
-export const WAIT_MINUTES = [0, 3, 10, 20] as const;

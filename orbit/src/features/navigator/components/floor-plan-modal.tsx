@@ -1,20 +1,23 @@
-import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Image } from 'expo-image';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { RoomList } from '@/components/floorplan/room-list';
-import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Icon, type IconName } from '@/components/ui/icon';
-import { Floor, MOLSON_FLOORS } from '@/constants/floorplans';
-import { Elevation, FixedColors, Opacity, Radius, Size, Spacing, TouchTarget } from '@/constants/theme';
+import { Icon } from '@/components/ui/icon';
+import { ThemedText } from '@/components/ui/themed-text';
+import { PLAN_METRES_PER_UNIT, WALK_METRES_PER_MIN } from '@/data/constants';
+import { MOLSON_FLOORS } from '@/data/floorplans';
+import type { Floor, IconName, Room, RouteStep } from '@/data/types';
+import { RoomList } from '@/features/navigator/components/room-list';
+import { drawRoute, highlightRoom } from '@/features/navigator/floorplan/highlight';
+import { ENTRANCE, findRoom, getOtherRooms, getRooms, routeBetween } from '@/features/navigator/floorplan/navmesh';
+import { getRoomRegions } from '@/features/navigator/floorplan/regions';
 import { useLayout } from '@/hooks/use-layout';
 import { useTheme } from '@/hooks/use-theme';
-import { drawRoute, highlightRoom } from '@/lib/floorplan/highlight';
-import { ENTRANCE, getOtherRooms, getRooms, Room, routeBetween } from '@/lib/floorplan/navmesh';
-import { getRoomRegions } from '@/lib/floorplan/regions';
-import type { RouteStep } from '@/lib/floorplan/route';
+import { FixedColors, Opacity, Size } from '@/styles/theme';
+
+import { styles } from './floor-plan-modal.styles';
 
 type Props = {
   floor: Floor | null;
@@ -34,12 +37,9 @@ const STEP_ICON: Record<RouteStep['kind'], IconName> = {
   arrive: 'flag',
 };
 
-const allRooms = getOtherRooms('');
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
 /** Rough size of a plan unit, for a walking-time estimate only. */
-const METRES_PER_UNIT = 0.16;
-const METRES_PER_MINUTE = 80;
 
 /**
  * Full-screen indoor map with directions. Pick where you are and where you are going; the route is
@@ -62,7 +62,7 @@ export function FloorPlanModal({ floor, onSelect, onClose, focusRoom }: Props) {
   const [seenFocus, setSeenFocus] = useState<string | undefined>(undefined);
   if (focusRoom !== seenFocus) {
     setSeenFocus(focusRoom);
-    const target = focusRoom ? allRooms.find((r) => r.label === focusRoom) : undefined;
+    const target = focusRoom ? findRoom(focusRoom)?.room : undefined;
     if (target) {
       setTo(target);
       setFrom(ENTRANCE);
@@ -117,8 +117,8 @@ export function FloorPlanModal({ floor, onSelect, onClose, focusRoom }: Props) {
     return () => document.removeEventListener('keydown', onKey);
   }, [floor, close]);
 
-  const minutes = route ? Math.max(1, Math.round((route.length * METRES_PER_UNIT) / METRES_PER_MINUTE)) : 0;
-  const metres = route ? Math.round(route.length * METRES_PER_UNIT) : 0;
+  const minutes = route ? Math.max(1, Math.round((route.length * PLAN_METRES_PER_UNIT) / WALK_METRES_PER_MIN)) : 0;
+  const metres = route ? Math.round(route.length * PLAN_METRES_PER_UNIT) : 0;
   const planSquare = Math.min(planBox.width, planBox.height);
   const canvas = Math.max(planSquare * zoom, 1);
 
@@ -356,44 +356,3 @@ export function FloorPlanModal({ floor, onSelect, onClose, focusRoom }: Props) {
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1 },
-  layout: { flex: 1 },
-  layoutWide: { flexDirection: 'row' },
-  flex: { flex: 1 },
-  sidebar: { width: Size.planSidebar, borderRightWidth: StyleSheet.hairlineWidth },
-  sheet: { height: '50%', borderTopWidth: StyleSheet.hairlineWidth },
-  panelInner: { flex: 1, padding: Spacing.three, gap: Spacing.three },
-  panelHead: { gap: Spacing.one },
-  back: { minHeight: TouchTarget, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, alignSelf: 'flex-start' },
-  form: { gap: Spacing.one },
-  field: { minHeight: TouchTarget + Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingHorizontal: Spacing.three, borderRadius: Radius.lg, borderWidth: 1 },
-  dot: { width: Spacing.three, height: Spacing.three, borderRadius: Radius.pill },
-  swap: { alignSelf: 'flex-end', width: TouchTarget - Spacing.two, height: TouchTarget - Spacing.two, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center', marginVertical: -Spacing.one },
-  toggle: { minHeight: TouchTarget, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, alignSelf: 'flex-start' },
-  pickHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  entrance: { minHeight: TouchTarget, flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingHorizontal: Spacing.three, borderRadius: Radius.md, marginBottom: Spacing.two },
-  prompt: { marginBottom: Spacing.two },
-  pad: { padding: Spacing.three },
-  steps: { gap: Spacing.one, paddingBottom: Spacing.four },
-  summary: { borderRadius: Radius.lg, padding: Spacing.three, gap: Spacing.half, marginBottom: Spacing.two },
-  summaryText: { color: FixedColors.shellText },
-  summaryMuted: { color: FixedColors.shellMuted },
-  floorChips: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.two },
-  chip: { minHeight: TouchTarget - Spacing.two, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
-  step: { minHeight: TouchTarget + Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.two, borderRadius: Radius.md, borderWidth: 2 },
-  stepIcon: { width: TouchTarget - Spacing.two, height: TouchTarget - Spacing.two, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
-  planArea: { flex: 1 },
-  plan: { flex: 1, backgroundColor: FixedColors.shell, padding: Spacing.three },
-  paper: { flex: 1, backgroundColor: FixedColors.planSurface, borderRadius: Radius.xl, overflow: 'hidden', ...Elevation.raised },
-  region: { position: 'absolute', cursor: 'pointer' },
-  floorBar: { position: 'absolute', top: Spacing.five, left: Spacing.five, flexDirection: 'row', gap: Spacing.two },
-  floorTab: { minHeight: TouchTarget, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, borderWidth: 2, alignItems: 'center', justifyContent: 'center', ...Elevation.card },
-  onShell: { color: FixedColors.shellText },
-  zoom: { position: 'absolute', right: Spacing.five, bottom: Spacing.five, gap: Spacing.two },
-  zoomBtn: { width: TouchTarget, height: TouchTarget, borderRadius: Radius.pill, backgroundColor: FixedColors.shell, alignItems: 'center', justifyContent: 'center', ...Elevation.card },
-  legend: { position: 'absolute', left: Spacing.five, bottom: Spacing.five, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, backgroundColor: FixedColors.shell, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Radius.pill },
-  legendDot: { width: Spacing.two + Spacing.half, height: Spacing.two + Spacing.half, borderRadius: Radius.pill },
-  backFloat: { position: 'absolute', top: Spacing.five, right: Spacing.five, width: TouchTarget, height: TouchTarget, borderRadius: Radius.pill, backgroundColor: FixedColors.shell, alignItems: 'center', justifyContent: 'center', ...Elevation.card },
-});

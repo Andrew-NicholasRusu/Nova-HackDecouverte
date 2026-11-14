@@ -1,8 +1,9 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+
+import { styles } from './chip.styles';
 
 type Props = {
   label: string;
@@ -34,15 +35,3 @@ export function Chip({ label, selected = false, onPress, accessibilityLabel }: P
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  chip: {
-    minHeight: 36,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: { opacity: 0.7 },
-});

@@ -1,31 +1,34 @@
-import { useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
+import { Screen } from '@/components/layout/screen';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
-import { Screen } from '@/components/ui/screen';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/state-views';
-import { Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import { REPORT_MAX_AGE_MIN, STORAGE_KEYS } from '@/data/constants';
+import type { CampusFilter, LiveCategory } from '@/data/enums';
+import type { LiveLocation } from '@/data/types';
 import { useBrain } from '@/features/brain/use-brain';
-import { REPORT_MAX_AGE_MIN } from '@/features/live/confidence';
-import { LocationCard } from '@/features/live/location-card';
-import { estimateFor, loadLive, useLive, type LiveCategory, type LiveLocation } from '@/features/live/store';
+import { LocationCard } from '@/features/live/components/location-card';
+import { estimateFor, loadLive, useLive } from '@/features/live/store';
 import { useBuildingIndex } from '@/features/navigator/use-buildings';
 import { useProfile } from '@/features/profile/use-profile';
-import { useNow } from '@/features/schedule/format';
 import { useLayout } from '@/hooks/use-layout';
-import { walkMinutes } from '@/lib/geo';
+import { useNow } from '@/hooks/use-now';
+import { walkBetween } from '@/lib/geo';
 import { usePersisted } from '@/lib/persisted-store';
+
+import { styles } from './live-screen.styles';
 
 const SECTIONS: { category: LiveCategory; title: string }[] = [
   { category: 'food', title: 'Food and lines' },
   { category: 'study', title: 'Study spaces' },
 ];
 
-export default function LiveScreen() {
+export function LiveScreen() {
   const params = useLocalSearchParams<{ place?: string }>();
   const live = useLive();
   const profile = useProfile();
@@ -33,15 +36,10 @@ export default function LiveScreen() {
   const index = useBuildingIndex();
   const now = useNow();
   const { isMedium } = useLayout();
-  const [campus, setCampus] = usePersisted<'SGW' | 'LOY' | 'ALL' | null>('orbit.live.campus', null);
+  const [campus, setCampus] = usePersisted<CampusFilter | null>(STORAGE_KEYS.liveCampus, null);
   const selected = campus ?? profile?.preferred_campus ?? 'ALL';
 
-  const walkTo = (l: LiveLocation) => {
-    const from = plan.here ?? plan.nextBuilding;
-    const to = index.get(l.buildingCode.toUpperCase());
-    if (!from || !to || from.latitude == null || from.longitude == null || to.latitude == null || to.longitude == null) return null;
-    return walkMinutes({ latitude: from.latitude, longitude: from.longitude }, { latitude: to.latitude, longitude: to.longitude });
-  };
+  const walkTo = (l: LiveLocation) => walkBetween(plan.here ?? plan.nextBuilding, index.get(l.buildingCode.toUpperCase()));
 
   const sections = useMemo(
     () =>
@@ -96,11 +94,3 @@ export default function LiveScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  chips: { flexDirection: 'row', gap: Spacing.two },
-  section: { gap: Spacing.three },
-  grid: { gap: Spacing.three },
-  gridRow: { flexDirection: 'row', flexWrap: 'wrap' },
-  cell: { flexBasis: '48%', flexGrow: 1 },
-});

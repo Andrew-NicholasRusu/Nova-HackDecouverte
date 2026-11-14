@@ -1,17 +1,17 @@
-import { PlanCard } from '@/features/brain/plan-card';
-import { Hero } from '@/features/dashboard/hero';
-import { FriendsCard, LiveCard } from '@/features/dashboard/cards';
-import { Grid } from '@/features/dashboard/grid';
-import { MapCard } from '@/features/dashboard/map-card';
-import { QuickAccessCard } from '@/features/dashboard/quick-access-card';
+import { Grid } from '@/components/layout/grid';
+import { Screen } from '@/components/layout/screen';
+import { FriendsCard, LiveCard } from '@/features/dashboard/components/cards';
+import { Hero } from '@/features/dashboard/components/hero';
+import { MapCard } from '@/features/dashboard/components/map-card';
+import { NextClassCard } from '@/features/dashboard/components/next-class-card';
+import { PlanCard } from '@/features/dashboard/components/plan-card';
+import { QuickAccessCard } from '@/features/dashboard/components/quick-access-card';
 import { useProfile } from '@/features/profile/use-profile';
-import { NextClassCard } from '@/features/schedule/dashboard-cards';
-import { useNow } from '@/features/schedule/format';
-import { Screen } from '@/components/ui/screen';
 import { useLayout } from '@/hooks/use-layout';
+import { useNow } from '@/hooks/use-now';
 
 /** Home dashboard: photo hero over a responsive grid of data-driven cards. */
-export default function DashboardScreen() {
+export function DashboardScreen() {
   const { isWide, isMedium } = useLayout();
   const profile = useProfile();
   const now = useNow();

@@ -1,42 +1,33 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
+import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
-import { Screen } from '@/components/ui/screen';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/state-views';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { ClassBlock } from '@/features/schedule/class-block';
-import { ClassForm } from '@/features/schedule/class-form';
-import {
-  calculateFreePeriods,
-  calculateNextClass,
-  calculateScheduleConflicts,
-  occurrencesOnDate,
-  type Occurrence,
-} from '@/features/schedule/engine';
-import { formatDateLabel, formatDays, formatDuration, useNow } from '@/features/schedule/format';
-import type { ImportDraft } from '@/features/schedule/ics';
-import { ImportSourceSheet } from '@/features/schedule/import-source-sheet';
-import { WeekGrid } from '@/features/schedule/week-grid';
-import { useLayout } from '@/hooks/use-layout';
-import { usePersisted } from '@/lib/persisted-store';
-import { ImportReview } from '@/features/schedule/import-review';
-import {
-  addDays,
-  emptyClassInput,
-  startOfWeek,
-  toLocalDate,
-  type ClassEvent,
-} from '@/features/schedule/model';
+import { ThemedText } from '@/components/ui/themed-text';
+import { STORAGE_KEYS } from '@/data/constants';
+import type { ClassEvent, Occurrence, PendingImport } from '@/data/types';
+import { ClassBlock } from '@/features/schedule/components/class-block';
+import { ClassForm } from '@/features/schedule/components/class-form';
+import { ImportReview } from '@/features/schedule/components/import-review';
+import { ImportSourceSheet } from '@/features/schedule/components/import-source-sheet';
+import { WeekGrid } from '@/features/schedule/components/week-grid';
+import { calculateFreePeriods, calculateNextClass, calculateScheduleConflicts, occurrencesOnDate } from '@/features/schedule/engine';
+import { formatDateLabel, formatDays } from '@/features/schedule/format';
+import { addDays, emptyClassInput, startOfWeek, toLocalDate } from '@/features/schedule/model';
 import { createClasses, deleteClass, loadClassEvents, updateClass, useClassEvents } from '@/features/schedule/store';
+import { useLayout } from '@/hooks/use-layout';
+import { useNow } from '@/hooks/use-now';
+import { useTheme } from '@/hooks/use-theme';
+import { formatDuration } from '@/lib/format';
+import { usePersisted } from '@/lib/persisted-store';
+
+import { styles } from './schedule-screen.styles';
 
 type Editor = { mode: 'new' } | { mode: 'edit'; event: ClassEvent };
-type PendingImport = { fileName: string; drafts: ImportDraft[]; skipped: number };
 
 function DayList({
   occurrences,
@@ -70,14 +61,14 @@ function DayList({
   );
 }
 
-export default function ScheduleScreen() {
+export function ScheduleScreen() {
   const theme = useTheme();
   const schedule = useClassEvents();
   const now = useNow();
   const today = toLocalDate(now);
 
   const { isMedium } = useLayout();
-  const [savedView, setSavedView] = usePersisted<'day' | 'week' | null>('orbit.schedule.view', null);
+  const [savedView, setSavedView] = usePersisted<'day' | 'week' | null>(STORAGE_KEYS.scheduleView, null);
   const view = savedView ?? (isMedium ? 'week' : 'day');
   const setView = setSavedView;
   const [date, setDate] = useState(today);
@@ -292,14 +283,3 @@ export default function ScheduleScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  actions: { flexDirection: 'row', gap: Spacing.two },
-  flex: { flex: 1 },
-  toolbar: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: Spacing.two },
-  chips: { flexDirection: 'row', gap: Spacing.two },
-  list: { gap: Spacing.two },
-  break: { textAlign: 'center' },
-  dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: Spacing.two },
-  all: { gap: Spacing.two, marginTop: Spacing.four },
-});

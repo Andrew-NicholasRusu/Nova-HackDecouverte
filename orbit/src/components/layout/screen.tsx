@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Platform, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { Platform, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ThemedText } from '@/components/themed-text';
 import { FadeIn } from '@/components/ui/fade-in';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+
+import { styles } from './screen.styles';
 
 type Props = {
   title: string;
@@ -63,14 +64,3 @@ export function Screen({ title, subtitle, hero, onRefresh, children }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: {
-    alignItems: 'center',
-    padding: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.six + Spacing.four,
-  },
-  content: { width: '100%', maxWidth: MaxContentWidth, gap: Spacing.four },
-  header: { gap: Spacing.one, paddingTop: Spacing.two },
-});

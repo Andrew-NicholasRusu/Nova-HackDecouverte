@@ -1,13 +1,14 @@
 import { useMemo } from 'react';
 
+import type { Place, Plan } from '@/data/types';
 import { useFriends } from '@/features/friends/store';
 import { useLive } from '@/features/live/store';
 import { useBuildingIndex } from '@/features/navigator/use-buildings';
 import { useProfile } from '@/features/profile/use-profile';
-import { useNow } from '@/features/schedule/format';
 import { useClassEvents } from '@/features/schedule/store';
+import { useNow } from '@/hooks/use-now';
 
-import { buildPlan, type Place, type Plan } from './plan';
+import { buildPlan } from './plan';
 
 /** The one object the dashboard and every module read: today's plan across all modules. */
 export function useBrain(): Plan {

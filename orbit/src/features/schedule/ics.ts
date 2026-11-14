@@ -8,26 +8,10 @@
  * Anything we can't map exactly is kept but flagged with a warning for the review screen.
  */
 
-import {
-  addDays,
-  CAMPUS_TIMEZONE,
-  isoWeekday,
-  type ClassInput,
-  type ClassKind,
-  type Weekday,
-} from './model.ts';
-
-export type ImportDraft = ClassInput & {
-  /** Stable id for list rendering in the review screen. */
-  key: string;
-  warnings: string[];
-};
-
-export type IcsParseResult = {
-  drafts: ImportDraft[];
-  /** VEVENTs ignored (all-day, cancelled, overrides, unreadable). */
-  skipped: number;
-};
+import { CAMPUS_TIMEZONE, DEFAULT_TERM_WEEKS } from '../../data/constants.ts';
+import type { ClassKind, Weekday } from '../../data/enums.ts';
+import type { ImportDraft, ImportParseResult } from '../../data/types.ts';
+import { addDays, isoWeekday } from './model.ts';
 
 type Prop = { value: string; params: Record<string, string> };
 type RawEvent = Map<string, Prop>;
@@ -157,7 +141,6 @@ function toCampusWallTime(prop: Prop, warnings: string[]): WallTime | null {
 // ---------------------------------------------------------------------------
 
 const BYDAY: Record<string, Weekday> = { MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6, SU: 7 };
-const DEFAULT_TERM_WEEKS = 15;
 
 function parseRrule(value: string): Record<string, string> {
   const rule: Record<string, string> = {};
@@ -281,7 +264,7 @@ function mergeDrafts(drafts: ImportDraft[]): ImportDraft[] {
 // Public API
 // ---------------------------------------------------------------------------
 
-export function parseIcs(text: string): IcsParseResult {
+export function parseIcs(text: string): ImportParseResult {
   if (!/BEGIN:VCALENDAR/i.test(text)) {
     throw new Error("This doesn't look like a calendar (.ics) file.");
   }

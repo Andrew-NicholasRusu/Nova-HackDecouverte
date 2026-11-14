@@ -1,8 +1,10 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { Opacity, Radius, Spacing, TouchTarget } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { Opacity } from '@/styles/theme';
+
+import { styles } from './choice-chips.styles';
 
 type Props<T extends string | number> = {
   label: string;
@@ -40,15 +42,3 @@ export function ChoiceChips<T extends string | number>({ label, options, value, 
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  chip: {
-    minHeight: TouchTarget,
-    minWidth: TouchTarget,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

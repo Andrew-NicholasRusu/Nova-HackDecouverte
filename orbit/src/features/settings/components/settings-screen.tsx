@@ -1,39 +1,44 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
+import { Screen } from '@/components/layout/screen';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { Icon } from '@/components/ui/icon';
-import { Screen } from '@/components/ui/screen';
-import { Elevation, FixedColors, Opacity, Radius, Spacing, TouchTarget } from '@/constants/theme';
-import { MAX_QUICK, QUICK_ACTIONS, useQuickActions } from '@/features/dashboard/quick-actions';
-import { SHARING_HELP, SHARING_LABEL } from '@/features/friends/describe';
-import { setSharingLevel, useFriends, type SharingLevel } from '@/features/friends/store';
-import { ProfileFields } from '@/features/profile/profile-fields';
-import { reloadProfile, updateProfile, useProfileState, validateProfile, type Profile, type ProfileEdit } from '@/features/profile/use-profile';
-import { chooseAndUploadAvatar, removeAvatar } from '@/lib/avatar';
+import { ThemedText } from '@/components/ui/themed-text';
+import { MAX_QUICK_ACTIONS, PROFILE_LIMITS } from '@/data/constants';
+import { SHARING_LEVELS, type SharingLevel } from '@/data/enums';
+import { CAMPUS_NAME, SHARING_HELP, SHARING_LABEL } from '@/data/labels';
+import { QUICK_ACTIONS } from '@/data/quick-actions';
+import type { Profile, ProfileEdit, ProfileErrors } from '@/data/types';
+import { signOut } from '@/features/auth/auth';
+import { useAuth } from '@/features/auth/auth-provider';
+import { useQuickActions } from '@/features/dashboard/quick-actions';
+import { commonSharingLevel } from '@/features/friends/describe';
+import { setSharingLevelForAll, useFriends } from '@/features/friends/store';
+import { chooseAndUploadAvatar, removeAvatar } from '@/features/profile/avatar';
+import { ProfileFields } from '@/features/profile/components/profile-fields';
+import { isProfileEdited, reloadProfile, toProfileEdit, updateProfile, useProfileState, validateProfile } from '@/features/profile/use-profile';
 import { useClassEvents } from '@/features/schedule/store';
 import { useLayout } from '@/hooks/use-layout';
 import { useTheme } from '@/hooks/use-theme';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/providers/auth-provider';
+import { Opacity } from '@/styles/theme';
 
-const CAMPUS_NAME = { SGW: 'Sir George Williams', LOY: 'Loyola' } as const;
-const LEVELS: SharingLevel[] = ['private', 'availability', 'full'];
-const LEVEL_OPTIONS = LEVELS.map((value) => ({ value, label: SHARING_LABEL[value] }));
+import { styles } from './settings-screen.styles';
+
+const LEVEL_OPTIONS = SHARING_LEVELS.map((value) => ({ value, label: SHARING_LABEL[value] }));
 
 function QuickAccessSettings() {
   const theme = useTheme();
   const quick = useQuickActions();
-  const full = quick.ids.length >= MAX_QUICK;
+  const full = quick.ids.length >= MAX_QUICK_ACTIONS;
   return (
       <Card>
         <CardHeader icon="bolt" title="Quick Access shortcuts" />
         <ThemedText type="small" themeColor="textSecondary" accessibilityLiveRegion="polite">
-          Choose up to {MAX_QUICK} shortcuts for your home screen. {quick.ids.length} of {MAX_QUICK} selected.
+          Choose up to {MAX_QUICK_ACTIONS} shortcuts for your home screen. {quick.ids.length} of {MAX_QUICK_ACTIONS} selected.
         </ThemedText>
         {QUICK_ACTIONS.map((a) => {
           const on = quick.ids.includes(a.id);
@@ -180,21 +185,12 @@ function ProfileCard() {
 
 /** Inline profile editor: always available, saves with a visible result. */
 function ProfileForm({ profile }: { profile: Profile | null }) {
-  const [value, setValue] = useState<ProfileEdit>({
-    display_name: profile?.display_name ?? '',
-    username: profile?.username ?? null,
-    bio: profile?.bio ?? null,
-    preferred_campus: profile?.preferred_campus ?? null,
-  });
-  const [errors, setErrors] = useState<ReturnType<typeof validateProfile>>({});
+  const [value, setValue] = useState<ProfileEdit>(() => toProfileEdit(profile));
+  const [errors, setErrors] = useState<ProfileErrors>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
 
-  const dirty =
-    value.display_name !== (profile?.display_name ?? '') ||
-    value.username !== (profile?.username ?? null) ||
-    (value.bio ?? '') !== (profile?.bio ?? '') ||
-    value.preferred_campus !== (profile?.preferred_campus ?? null);
+  const dirty = isProfileEdited(value, profile);
 
   async function save() {
     const found = validateProfile(value);
@@ -216,7 +212,7 @@ function ProfileForm({ profile }: { profile: Profile | null }) {
       <CardHeader icon="person" title="Your profile" />
       <ProfileFields value={value} onChange={(v) => { setValue(v); setMessage(null); }} errors={errors} showBio />
       <ThemedText type="caption" themeColor="textSecondary" style={styles.right}>
-        {(value.bio ?? '').length}/280
+        {(value.bio ?? '').length}/{PROFILE_LIMITS.bio}
       </ThemedText>
       {message ? (
         <ThemedText type="small" themeColor={message.ok ? 'success' : 'danger'} accessibilityRole={message.ok ? undefined : 'alert'} accessibilityLiveRegion="polite">
@@ -232,14 +228,13 @@ function PrivacyCard() {
   const friends = useFriends();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
-  const levels = new Set(friends.friends.map((f) => f.myLevel));
-  const current = levels.size === 1 ? [...levels][0] : undefined;
+  const current = commonSharingLevel(friends.friends);
 
   async function apply(level: SharingLevel) {
     setBusy(true);
     setMessage(null);
     try {
-      await Promise.all(friends.friends.map((f) => setSharingLevel(f.id, level)));
+      await setSharingLevelForAll(friends.friends, level);
       setMessage({ text: `Now sharing: ${SHARING_LABEL[level]} with every friend.`, ok: true });
     } catch (e) {
       setMessage({ text: e instanceof Error ? e.message : 'Could not update sharing.', ok: false });
@@ -280,12 +275,12 @@ function AboutCard() {
       <ThemedText type="caption" themeColor="textSecondary">
         Buildings and floor plans: Concordia Open Data. Lines and seats: reported by students, not official. Your schedule stays private unless you share it.
       </ThemedText>
-      <Button label="Sign out" variant="secondary" icon="logout" onPress={() => supabase.auth.signOut()} />
+      <Button label="Sign out" variant="secondary" icon="logout" onPress={signOut} />
     </Card>
   );
 }
 
-export default function SettingsScreen() {
+export function SettingsScreen() {
   const { isWide } = useLayout();
   return (
     <Screen title="Settings" subtitle="Your profile, privacy and home screen">
@@ -302,28 +297,3 @@ export default function SettingsScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  cols: { gap: Spacing.four },
-  colsRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  col: { gap: Spacing.four },
-  flex: { flex: 1 },
-  profile: { backgroundColor: FixedColors.shell, borderRadius: Radius.xl, padding: Spacing.four, gap: Spacing.three, borderWidth: 1, borderColor: FixedColors.shellBorder, ...Elevation.raised },
-  profileTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },
-  profileTopStack: { flexDirection: 'column', alignItems: 'flex-start' },
-  photoActions: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap', marginTop: Spacing.two },
-  right: { textAlign: 'right' },
-  onShell: { color: FixedColors.shellText },
-  onShellMuted: { color: FixedColors.shellMuted },
-  gold: { color: FixedColors.gold },
-  stats: { flexDirection: 'row', gap: Spacing.five, flexWrap: 'wrap' },
-  stat: { gap: Spacing.half },
-  campus: { gap: Spacing.two },
-  pills: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
-  optionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  option: { flex: 1, minHeight: TouchTarget + Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  check: { width: Spacing.four, height: Spacing.four, borderRadius: Radius.sm, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  optionText: { flex: 1 },
-  move: { flexDirection: 'row' },
-  moveBtn: { width: TouchTarget, height: TouchTarget, alignItems: 'center', justifyContent: 'center' },
-});

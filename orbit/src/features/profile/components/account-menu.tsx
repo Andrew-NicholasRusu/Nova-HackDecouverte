@@ -1,16 +1,18 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
-import { Icon, type IconName } from '@/components/ui/icon';
+import { Icon } from '@/components/ui/icon';
 import { Popover } from '@/components/ui/popover';
-import { Opacity, Spacing, TouchTarget } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import type { IconName } from '@/data/types';
+import { signOut } from '@/features/auth/auth';
+import { useAuth } from '@/features/auth/auth-provider';
+import { useProfile } from '@/features/profile/use-profile';
 import { useTheme } from '@/hooks/use-theme';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/providers/auth-provider';
+import { Opacity } from '@/styles/theme';
 
-import { useProfile } from './use-profile';
+import { styles } from './account-menu.styles';
 
 type Item = { label: string; icon: IconName; run: () => void; danger?: boolean };
 
@@ -25,7 +27,7 @@ export function AccountMenu() {
     { label: 'Edit profile and photo', icon: 'person', run: () => router.push('/settings') },
     { label: 'Settings and shortcuts', icon: 'settings', run: () => router.push('/settings') },
     { label: 'Privacy', icon: 'lock', run: () => router.push('/settings') },
-    { label: 'Sign out', icon: 'logout', danger: true, run: () => void supabase.auth.signOut() },
+    { label: 'Sign out', icon: 'logout', danger: true, run: () => void signOut() },
   ];
 
   return (
@@ -80,9 +82,3 @@ export function AccountMenu() {
     </Popover>
   );
 }
-
-const styles = StyleSheet.create({
-  head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.three, borderBottomWidth: StyleSheet.hairlineWidth },
-  flex: { flex: 1 },
-  item: { minHeight: TouchTarget + Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingHorizontal: Spacing.three },
-});

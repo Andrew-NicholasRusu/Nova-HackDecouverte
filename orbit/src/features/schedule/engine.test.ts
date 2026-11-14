@@ -2,14 +2,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import {
-  calculateFreePeriods,
-  calculateNextClass,
-  calculateScheduleConflicts,
-  expandOccurrences,
-  occurrencesOnDate,
-} from './engine.ts';
-import { atLocalTime, emptyClassInput, normalizeClassInput, validateClassInput, type ClassEvent } from './model.ts';
+import type { ClassEvent } from '../../data/types.ts';
+import { calculateFreePeriods, calculateNextClass, calculateScheduleConflicts, expandOccurrences, occurrencesOnDate } from './engine.ts';
+import { atLocalTime, emptyClassInput, normalizeClassInput, validateClassInput } from './model.ts';
 
 process.env.TZ = 'America/Toronto';
 

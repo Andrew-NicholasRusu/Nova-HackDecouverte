@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { Colors } from '@/styles/theme';
 
 const STYLE_ID = 'orbit-web-theme';
 

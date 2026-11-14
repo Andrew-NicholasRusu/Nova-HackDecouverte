@@ -1,44 +1,43 @@
+import { type ComponentRef, useCallback, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useRef, useState, type ComponentRef } from 'react';
-import { Linking, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Linking, Pressable, TextInput, View } from 'react-native';
 
-import { BuildingViewer } from '@/components/floorplan/building-viewer';
-import { FloorPlanModal } from '@/components/floorplan/floor-plan-modal';
-import { ThemedText } from '@/components/themed-text';
+import { Screen } from '@/components/layout/screen';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { Dropdown } from '@/components/ui/dropdown';
 import { Icon } from '@/components/ui/icon';
 import { Pill } from '@/components/ui/pill';
-import { Screen } from '@/components/ui/screen';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/state-views';
-import { Floor, MOLSON_FLOORS } from '@/constants/floorplans';
-import { Elevation, FixedColors, Opacity, Radius, Size, Spacing, TouchTarget, Typography } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import { FALLBACK_BUILDINGS } from '@/data/buildings';
+import { STORAGE_KEYS } from '@/data/constants';
+import { CAMPUSES, type CampusFilter } from '@/data/enums';
+import { CAMPUS_NAME, campusName } from '@/data/labels';
+import type { Building, Floor, Room } from '@/data/types';
 import { useBrain } from '@/features/brain/use-brain';
-import { CampusMap } from '@/features/navigator/campus-map';
-import { FALLBACK_BUILDINGS } from '@/features/navigator/fallback-buildings';
-import { useBuildings, type Building } from '@/features/navigator/use-buildings';
+import { BuildingViewer } from '@/features/navigator/components/building-viewer';
+import { CampusMap } from '@/features/navigator/components/campus-map';
+import { FloorPlanModal } from '@/features/navigator/components/floor-plan-modal';
+import { ALL_ROOMS, findRoom } from '@/features/navigator/floorplan/navmesh';
+import { filterBuildings, hasCoords, matchesBuilding, useBuildings } from '@/features/navigator/use-buildings';
 import { useProfile } from '@/features/profile/use-profile';
 import { useLayout } from '@/hooks/use-layout';
 import { useTheme } from '@/hooks/use-theme';
 import { directionsUrl, walkMinutes } from '@/lib/geo';
 import { useDismissOutside, useOverlay } from '@/lib/overlay';
 import { usePersisted } from '@/lib/persisted-store';
-import { getOtherRooms } from '@/lib/floorplan/navmesh';
+import { Opacity, Size } from '@/styles/theme';
 
-const CAMPUS_NAMES: Record<string, string> = { SGW: 'Sir George Williams', LOY: 'Loyola' };
-const CAMPUS_OPTIONS = [
+import { styles } from './navigator-screen.styles';
+
+const CAMPUS_OPTIONS: { value: CampusFilter; label: string }[] = [
   { value: 'ALL', label: 'Both campuses' },
-  { value: 'SGW', label: 'Sir George Williams' },
-  { value: 'LOY', label: 'Loyola' },
-] as const;
-type CampusFilter = (typeof CAMPUS_OPTIONS)[number]['value'];
+  ...CAMPUSES.map((value) => ({ value, label: CAMPUS_NAME[value] })),
+];
 
-const allRooms = getOtherRooms('');
-const hasCoords = (b: Building): b is Building & { latitude: number; longitude: number } =>
-  b.latitude != null && b.longitude != null;
 
 function BuildingTile({
   b,
@@ -90,7 +89,7 @@ function BuildingTile({
       </Pressable>
       <View style={styles.tileFoot}>
         <ThemedText type="caption" themeColor="textSecondary" style={styles.flex}>
-          {CAMPUS_NAMES[b.campus] ?? b.campus}
+          {campusName(b.campus)}
           {walk !== null ? ` · ${walk} min from ${walkFrom!.code}` : ''}
         </ThemedText>
         {hasCoords(b) && (
@@ -107,7 +106,7 @@ function BuildingTile({
   );
 }
 
-export default function NavigatorScreen() {
+export function NavigatorScreen() {
   const params = useLocalSearchParams<{ building?: string; room?: string }>();
   const theme = useTheme();
   const { isWide, isMedium } = useLayout();
@@ -121,7 +120,7 @@ export default function NavigatorScreen() {
   useDismissOutside(searchWrap, searchOpen, closeSearch);
   const [floor, setFloor] = useState<Floor | null>(null);
   const [focusRoom, setFocusRoom] = useState<string | undefined>(undefined);
-  const [campus, setCampus] = usePersisted<CampusFilter>('orbit.map.campus', 'ALL');
+  const [campus, setCampus] = usePersisted<CampusFilter>(STORAGE_KEYS.mapCampus, 'ALL');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -134,21 +133,18 @@ export default function NavigatorScreen() {
       setSelected(params.building.toUpperCase());
       setCampus('ALL');
     }
-    if (params.room) {
-      const r = allRooms.find((x) => x.label === params.room);
-      const f = r && MOLSON_FLOORS.find((x) => x.id === r.floor);
-      if (f) {
-        setFocusRoom(r.label);
-        setFloor(f);
-      }
+    const found = params.room ? findRoom(params.room) : null;
+    if (found) {
+      setFocusRoom(found.room.label);
+      setFloor(found.floor);
     }
   }
 
   const q = query.trim().toLowerCase();
   const matches = useMemo(() => {
-    if (!q) return { buildings: [] as Building[], rooms: [] as typeof allRooms };
-    const buildings = data.status === 'ready' ? data.buildings.filter((b) => `${b.code} ${b.longName} ${b.name} ${b.address}`.toLowerCase().includes(q)).slice(0, 5) : [];
-    const rooms = allRooms.filter((r) => r.label.toLowerCase().includes(q)).slice(0, 5);
+    if (!q) return { buildings: [] as Building[], rooms: [] as Room[] };
+    const buildings = data.status === 'ready' ? data.buildings.filter((b) => matchesBuilding(b, q)).slice(0, 5) : [];
+    const rooms = ALL_ROOMS.filter((r) => r.label.toLowerCase().includes(q)).slice(0, 5);
     return { buildings, rooms };
   }, [q, data]);
 
@@ -160,28 +156,21 @@ export default function NavigatorScreen() {
 
   const list = useMemo(() => {
     if (data.status !== 'ready') return [];
-    const filtered = data.buildings.filter((b) => (campus === 'ALL' || b.campus === campus) && (!q || `${b.code} ${b.longName} ${b.name} ${b.address}`.toLowerCase().includes(q)));
-    return filtered.sort(
-      (a, b) =>
-        Number(b.code === selected) - Number(a.code === selected) ||
-        Number(b.campus === 'SGW') - Number(a.campus === 'SGW') ||
-        a.code.localeCompare(b.code),
-    );
+    return filterBuildings(data.buildings, campus, q, selected);
   }, [data, campus, q, selected]);
 
   const mapCampus = campus === 'ALL' ? (plan.nextBuilding?.campus ?? profile?.preferred_campus ?? 'SGW') : campus;
   const selectedBuilding = (data.status === 'ready' ? data.buildings : FALLBACK_BUILDINGS).find((b) => b.code === selected && b.campus === mapCampus);
   const nextBuilding = plan.next?.event.buildingCode ?? '';
   const nextRoomLabel = plan.next ? `MB-${plan.next.event.room}` : '';
-  const nextRoom = nextBuilding === 'MB' ? allRooms.find((r) => r.label === nextRoomLabel) : undefined;
+  const nextRoom = nextBuilding === 'MB' ? findRoom(nextRoomLabel)?.room : undefined;
   const nextBuildingData = data.status === 'ready' ? data.buildings.find((b) => b.code === nextBuilding) : undefined;
 
   const openRoom = (label: string) => {
-    const r = allRooms.find((x) => x.label === label);
-    const f = r && MOLSON_FLOORS.find((x) => x.id === r.floor);
-    if (f) {
+    const found = findRoom(label);
+    if (found) {
       setFocusRoom(label);
-      setFloor(f);
+      setFloor(found.floor);
     }
     setQuery('');
   };
@@ -296,7 +285,7 @@ export default function NavigatorScreen() {
           <View style={styles.nextHead}>
             <Icon name="map" size="lg" color="accentLink" />
             <ThemedText type="heading" accessibilityRole="header">
-              {CAMPUS_NAMES[mapCampus] ?? mapCampus} campus
+              {campusName(mapCampus)} campus
             </ThemedText>
           </View>
           <CampusMap buildings={data.status === 'ready' ? data.buildings : []} campus={mapCampus} height={isWide ? Size.campusMapWide : Size.campusMap} selected={selected} next={nextBuilding} here={plan.here?.code} onSelect={(code) => setSelected(selected === code ? null : code)} />
@@ -375,47 +364,3 @@ function SearchInput({ value, onFocus, onChange, onSubmit, color, placeholderCol
     />
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  flex1: { flex: 1 },
-  flex2: { flex: 2 },
-  searchWrap: { position: 'relative', zIndex: 30 },
-  search: { minHeight: TouchTarget + Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingLeft: Spacing.four, borderRadius: Radius.pill, borderWidth: 1, ...Elevation.card },
-  input: { flex: 1, minHeight: TouchTarget, ...Typography.body, outlineStyle: 'none' } as object,
-  clear: { width: TouchTarget, height: TouchTarget, alignItems: 'center', justifyContent: 'center' },
-  result: { minHeight: TouchTarget + Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingHorizontal: Spacing.four },
-  empty: { padding: Spacing.four },
-  top: { gap: Spacing.four },
-  topRow: { flexDirection: 'row', alignItems: 'stretch' },
-  rightCol: { gap: Spacing.four },
-  stageCardWide: { width: Size.stageViewer + Spacing.four * 2, alignSelf: 'flex-start' },
-  stageCard: { backgroundColor: FixedColors.shell, borderRadius: Radius.xl, padding: Spacing.four, borderWidth: 1, borderColor: FixedColors.shellBorder, ...Elevation.raised },
-  stage: { gap: Spacing.three },
-  stageViewer: { width: Size.stageViewer, maxWidth: '100%', borderRadius: Radius.lg, overflow: 'hidden', backgroundColor: FixedColors.planSurface },
-  stageInfo: { gap: Spacing.one },
-  stageKicker: { color: FixedColors.gold, textTransform: 'uppercase', letterSpacing: 1.5 },
-  stageTitle: { color: FixedColors.shellText },
-  stageSub: { color: FixedColors.shellMuted },
-  floors: { gap: Spacing.two, marginTop: Spacing.two },
-  floorTile: { minHeight: TouchTarget + Spacing.three, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.three, borderRadius: Radius.lg, backgroundColor: FixedColors.shellRaised, borderWidth: 1, borderColor: FixedColors.shellBorder },
-  next: { gap: Spacing.two },
-  callout: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, flexWrap: 'wrap' },
-  nextHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  nextActions: { gap: Spacing.two, marginTop: Spacing.two },
-  dirHead: { gap: Spacing.three },
-  grid: { gap: Spacing.three },
-  gridRow: { flexDirection: 'row', flexWrap: 'wrap' },
-  cell: { flexBasis: '48%', flexGrow: 1 },
-  cell3: { flexBasis: '31%', flexGrow: 1 },
-  tile: { borderRadius: Radius.xl, borderWidth: 1, padding: Spacing.four, gap: Spacing.three, ...Elevation.card },
-  tileSelected: { borderWidth: 2 },
-  tileMain: { gap: Spacing.three },
-  tileTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tileBadges: { flexDirection: 'row', gap: Spacing.one, flexWrap: 'wrap', justifyContent: 'flex-end' },
-  code: { minWidth: TouchTarget + Spacing.two, height: TouchTarget, paddingHorizontal: Spacing.three, borderRadius: Radius.md, backgroundColor: FixedColors.shellActive, alignItems: 'center', justifyContent: 'center' },
-  codeText: { color: FixedColors.gold },
-  tileText: { gap: Spacing.half },
-  tileFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
-  dir: { width: TouchTarget, height: TouchTarget, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
-});

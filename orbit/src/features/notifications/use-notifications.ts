@@ -1,26 +1,14 @@
 import { useCallback, useMemo } from 'react';
 
-import type { IconName } from '@/components/ui/icon';
+import { STORAGE_KEYS } from '@/data/constants';
+import type { Notice } from '@/data/types';
 import { useBrain } from '@/features/brain/use-brain';
-import type { Target } from '@/features/brain/plan';
-import { useFriends, type FriendRequest } from '@/features/friends/store';
+import { useFriends } from '@/features/friends/store';
 import { useProfile } from '@/features/profile/use-profile';
 import { calculateScheduleConflicts } from '@/features/schedule/engine';
-import { useNow } from '@/features/schedule/format';
 import { useClassEvents } from '@/features/schedule/store';
+import { useNow } from '@/hooks/use-now';
 import { usePersisted } from '@/lib/persisted-store';
-
-export type Notice = {
-  id: string;
-  icon: IconName;
-  title: string;
-  detail: string;
-  /** Sticky notices stay until acted on (requests, conflicts); others can be marked read. */
-  sticky: boolean;
-  target?: Target;
-  cta?: string;
-  request?: FriendRequest;
-};
 
 /** Everything that needs attention, built from the other modules. */
 export function useNotifications() {
@@ -29,7 +17,7 @@ export function useNotifications() {
   const friends = useFriends();
   const schedule = useClassEvents();
   const profile = useProfile();
-  const [readIds, setReadIds] = usePersisted<string[]>('orbit.notifications.read', []);
+  const [readIds, setReadIds] = usePersisted<string[]>(STORAGE_KEYS.notificationsRead, []);
 
   const notices = useMemo(() => {
     const out: Notice[] = [];

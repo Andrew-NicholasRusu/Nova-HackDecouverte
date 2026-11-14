@@ -3,24 +3,9 @@
  * shared by the Schedule screen, the dashboard and (later) the Friends availability engine.
  */
 
-import {
-  addDays,
-  atLocalTime,
-  isoWeekday,
-  timeToMinutes,
-  toLocalDate,
-  type ClassEvent,
-  type RecurringSlot,
-  type Weekday,
-} from './model.ts';
-
-export type Occurrence<E extends RecurringSlot = ClassEvent> = {
-  event: E;
-  /** Local calendar date, "YYYY-MM-DD". */
-  date: string;
-  start: Date;
-  end: Date;
-};
+import type { FreeWindow, NextClass, Occurrence, RecurringSlot, ScheduleConflict } from '../../data/types.ts';
+import { minutesOfDay } from '../../lib/format.ts';
+import { addDays, atLocalTime, isoWeekday, timeToMinutes, toLocalDate } from './model.ts';
 
 /** Every occurrence that overlaps [from, to), sorted by start time. */
 export function expandOccurrences<E extends RecurringSlot>(events: E[], from: Date, to: Date): Occurrence<E>[] {
@@ -43,12 +28,10 @@ export function occurrencesOnDate<E extends RecurringSlot>(events: E[], date: st
   return expandOccurrences(events, atLocalTime(date, '00:00'), atLocalTime(addDays(date, 1), '00:00'));
 }
 
-export type NextClass<E extends RecurringSlot = ClassEvent> = {
-  /** The class happening right now, if any. */
-  current: Occurrence<E> | null;
-  /** The next class that hasn't started yet, if any within the horizon. */
-  next: Occurrence<E> | null;
-};
+/** Busy stretches on one day, in minutes since midnight (for the free/busy bars). */
+export function busyBlocks(events: RecurringSlot[], date: string): { from: number; to: number }[] {
+  return occurrencesOnDate(events, date).map((o) => ({ from: minutesOfDay(o.start), to: minutesOfDay(o.end) }));
+}
 
 /** What's on now and what's next (PLAN.md §3.2 B). */
 export function calculateNextClass<E extends RecurringSlot>(events: E[], now: Date, horizonDays = 120): NextClass<E> {
@@ -57,13 +40,6 @@ export function calculateNextClass<E extends RecurringSlot>(events: E[], now: Da
   const next = upcoming.find((o) => o.start > now) ?? null;
   return { current, next };
 }
-
-export type ScheduleConflict<E extends RecurringSlot = ClassEvent> = {
-  a: E;
-  b: E;
-  /** Weekdays on which both classes meet at overlapping times. */
-  days: Weekday[];
-};
 
 function rangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string) {
   return aStart <= bEnd && bStart <= aEnd;
@@ -87,15 +63,13 @@ export function calculateScheduleConflicts<E extends RecurringSlot>(events: E[])
   return conflicts;
 }
 
-export type FreePeriod = { start: Date; end: Date; minutes: number };
-
 /**
  * Gaps between consecutive classes in a list of occurrences (typically one day).
  * Overlapping classes are merged first; gaps shorter than `minMinutes` are dropped.
  */
-export function calculateFreePeriods(occurrences: Occurrence<RecurringSlot>[], minMinutes = 15): FreePeriod[] {
+export function calculateFreePeriods(occurrences: Occurrence<RecurringSlot>[], minMinutes = 15): FreeWindow[] {
   const sorted = [...occurrences].sort((a, b) => a.start.getTime() - b.start.getTime());
-  const gaps: FreePeriod[] = [];
+  const gaps: FreeWindow[] = [];
   let busyUntil: Date | null = null;
   for (const o of sorted) {
     if (busyUntil && o.start > busyUntil) {

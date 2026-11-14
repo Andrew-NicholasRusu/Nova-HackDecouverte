@@ -1,16 +1,15 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 
-import type { ReadProgress, ReadResult } from './read-file.types';
-
-const MAX_BYTES = 8_000_000;
+import { SCHEDULE_FILE_MAX_BYTES } from '@/data/constants';
+import type { ReadProgress, ReadResult } from '@/data/types';
 
 /** Native: calendar and text files. Photo and PDF reading needs the web app (see read-file.web.ts). */
 export async function readScheduleFile(_onProgress?: ReadProgress): Promise<ReadResult | null> {
   const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true, multiple: false });
   if (result.canceled) return null;
   const asset = result.assets[0];
-  if (asset.size && asset.size > MAX_BYTES) throw new Error('That file is too large (max 8 MB).');
+  if (asset.size && asset.size > SCHEDULE_FILE_MAX_BYTES.native) throw new Error('That file is too large (max 8 MB).');
 
   if (/\.(png|jpe?g|webp|gif|bmp|heic|pdf)$/i.test(asset.name)) {
     throw new Error('Reading photos and PDFs works in the web app. On your phone, import an .ics file or paste the schedule text.');

@@ -3,6 +3,8 @@
  * landmarks. Pure, so it is unit-tested without the app.
  */
 
+import type { Route, RouteSegment, RouteStep } from '../../../data/types.ts';
+
 export type GraphNode = { id: string; x: number; y: number; floor: number; type: string; label: string };
 export type GraphLink = { fromId: string; toId: string; type: string; weight: number; accessible: boolean };
 
@@ -12,26 +14,6 @@ export type Graph = {
   adj: Map<string, { to: string; link: GraphLink }[]>;
   /** Heuristic scale in (0, 1]: min link weight / straight-line length, keeps A* admissible. */
   hScale: number;
-};
-
-export type RouteStep = {
-  kind: 'start' | 'walk' | 'turn-left' | 'turn-right' | 'elevator' | 'stairs' | 'arrive';
-  text: string;
-  floor: number;
-  /** Where to look on the plan for this step. */
-  x: number;
-  y: number;
-};
-
-export type RouteSegment = { floor: number; points: { x: number; y: number }[] };
-
-export type Route = {
-  nodeIds: string[];
-  /** Path length in plan units (1024 per floor drawing). */
-  length: number;
-  segments: RouteSegment[];
-  steps: RouteStep[];
-  floors: number[];
 };
 
 const VERTICAL_COST: Record<string, number> = { elevator: 25, stair: 35 };

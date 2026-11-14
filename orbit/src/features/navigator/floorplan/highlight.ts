@@ -1,6 +1,7 @@
-import { FixedColors } from '@/constants/theme';
-import { getRoomEdges, Room } from '@/lib/floorplan/navmesh';
-import type { Route } from '@/lib/floorplan/route';
+import type { Room, Route } from '@/data/types';
+import { FixedColors } from '@/styles/theme';
+
+import { getRoomEdges } from './navmesh';
 
 const RED = FixedColors.roomHighlight;
 

@@ -1,14 +1,16 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
-import { Size, Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
 import { useBrain } from '@/features/brain/use-brain';
-import { CampusMap } from '@/features/navigator/campus-map';
+import { CampusMap } from '@/features/navigator/components/campus-map';
 import { useBuildings } from '@/features/navigator/use-buildings';
 import { useProfile } from '@/features/profile/use-profile';
+import { Size } from '@/styles/theme';
+
+import { styles } from './map-card.styles';
 
 /** Campus overview: your next class building, where you are and the walk between them. */
 export function MapCard() {
@@ -38,5 +40,3 @@ export function MapCard() {
     </Card>
   );
 }
-
-const styles = StyleSheet.create({ map: { gap: Spacing.two } });

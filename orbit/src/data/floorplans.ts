@@ -1,13 +1,7 @@
 import { john1Svg } from '@/assets/floor_plan/svg/john1';
 import { john2Svg } from '@/assets/floor_plan/svg/john2';
 
-export type Floor = {
-  id: string;
-  label: string;
-  band: { top: number; height: number; left: number; width: number };
-  image: number;
-  svg: string;
-};
+import type { Floor } from './types.ts';
 
 export const MOLSON_PHOTO = require('@/assets/images/buildings/molson.jpg');
 export const MOLSON_PHOTO_RATIO = 1280 / 1707;

@@ -3,7 +3,7 @@
  * muted blue-greys, semantic green/amber/red. Every colour, size and duration lives here.
  */
 
-import '@/global.css';
+import '@/styles/global.css';
 
 import { Platform } from 'react-native';
 

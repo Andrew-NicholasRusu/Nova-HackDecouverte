@@ -1,9 +1,12 @@
-import { Pressable, StyleSheet, View, type PressableProps } from 'react-native';
+import { Pressable, type PressableProps, View } from 'react-native';
 
-import { Icon, type IconName } from '@/components/ui/icon';
-import { ThemedText } from '@/components/themed-text';
-import { Opacity, Radius, Spacing, TouchTarget } from '@/constants/theme';
+import { Icon } from '@/components/ui/icon';
+import { ThemedText } from '@/components/ui/themed-text';
+import type { IconName } from '@/data/types';
 import { useTheme } from '@/hooks/use-theme';
+import { Opacity } from '@/styles/theme';
+
+import { styles } from './button.styles';
 
 type Props = Omit<PressableProps, 'children'> & {
   label: string;
@@ -65,16 +68,3 @@ export function Button({
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    minHeight: TouchTarget,
-    paddingHorizontal: Spacing.four,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ghost: { paddingHorizontal: Spacing.two },
-  full: { alignSelf: 'stretch' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-});

@@ -4,10 +4,9 @@
  * "free/busy only" never send them.
  */
 
+import type { BusyStatus, FreeWindow, RecurringSlot } from '../../data/types.ts';
 import { occurrencesOnDate } from './engine.ts';
-import { atLocalTime, toLocalDate, type RecurringSlot } from './model.ts';
-
-export type FreeWindow = { start: Date; end: Date; minutes: number };
+import { atLocalTime, toLocalDate } from './model.ts';
 
 export type AvailabilityOptions = {
   /** Campus day bounds, "HH:MM". Defaults 08:00–22:00. */
@@ -49,11 +48,7 @@ export function calculateSharedAvailability(
   return windows;
 }
 
-export type BusyStatus =
-  | { state: 'in-class'; until: Date }
-  | { state: 'free'; until: Date | null };
-
-/** Is someone in class right now, and until when? `until: null` = free for the rest of the day. */
+/** Is someone in class right now, and until when? */
 export function busyStatusAt(schedule: RecurringSlot[], now: Date): BusyStatus {
   const today = occurrencesOnDate(schedule, toLocalDate(now)).filter((o) => o.end > now);
   const current = today.filter((o) => o.start <= now);

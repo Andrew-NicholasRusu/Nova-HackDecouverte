@@ -1,24 +1,16 @@
 import { Image } from 'expo-image';
-
-import { HERO_FOCUS, HERO_PHOTO, HERO_PHOTO_ALT } from '@/constants/images';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
 
-import { NotificationBell } from '@/features/notifications/notification-bell';
-import { AccountMenu } from '@/features/profile/account-menu';
-import { SearchBar } from '@/features/search/search-bar';
-
-import { ThemedText } from '@/components/themed-text';
-import {
-  BadgeSize,
-  FixedColors,
-  HeroHeight,
-  Motion,
-  Radius,
-  Spacing,
-  TouchTarget,
-} from '@/constants/theme';
+import { ThemedText } from '@/components/ui/themed-text';
+import { HERO_FOCUS, HERO_PHOTO, HERO_PHOTO_ALT } from '@/data/images';
+import { NotificationBell } from '@/features/notifications/components/notification-bell';
+import { AccountMenu } from '@/features/profile/components/account-menu';
+import { SearchBar } from '@/features/search/components/search-bar';
 import { useLayout } from '@/hooks/use-layout';
+import { FixedColors, HeroHeight, Motion } from '@/styles/theme';
+
+import { styles } from './hero.styles';
 
 type Props = { name?: string };
 
@@ -72,38 +64,3 @@ export function Hero({ name }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  hero: {
-    // No overflow clipping here: the search dropdown must escape the banner. The photo clips itself.
-    zIndex: 20,
-    padding: Spacing.four,
-    justifyContent: 'space-between',
-    gap: Spacing.four,
-  },
-  clip: { ...StyleSheet.absoluteFill, borderRadius: Radius.xl, overflow: 'hidden', backgroundColor: FixedColors.shell },
-  // Above the greeting block: the search dropdown lives in this row and must win hit-testing.
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: Spacing.three, zIndex: 30 },
-  iconButton: {
-    width: TouchTarget,
-    height: TouchTarget,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: FixedColors.heroGlass,
-  },
-  badge: {
-    position: 'absolute',
-    top: Spacing.two,
-    right: Spacing.two + Spacing.half,
-    width: BadgeSize,
-    height: BadgeSize,
-    borderRadius: BadgeSize / 2,
-    backgroundColor: FixedColors.shellActive,
-    borderWidth: 2,
-    borderColor: FixedColors.white,
-  },
-  copy: { gap: Spacing.one },
-  greeting: { color: FixedColors.white },
-  tagline: { color: FixedColors.white },
-});

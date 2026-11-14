@@ -1,6 +1,6 @@
 import { useWindowDimensions } from 'react-native';
 
-import { Breakpoints } from '@/constants/theme';
+import { Breakpoints } from '@/styles/theme';
 
 /** Responsive helpers: `isWide` shows the sidebar layout, `isMedium` allows two-column grids. */
 export function useLayout() {
