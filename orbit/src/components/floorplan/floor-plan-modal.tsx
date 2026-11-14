@@ -1,59 +1,218 @@
 import { Image } from 'expo-image';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FloorSwitcher } from '@/components/floorplan/floor-switcher';
+import { RoomList } from '@/components/floorplan/room-list';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Floor } from '@/constants/floorplans';
+import { Floor, MOLSON_FLOORS } from '@/constants/floorplans';
 import { Spacing } from '@/constants/theme';
+import { getRoomRegions } from '@/lib/floorplan/regions';
+import { highlightRoom } from '@/lib/floorplan/highlight';
+import { getOtherRooms, getRooms, Room } from '@/lib/floorplan/navmesh';
 
-type Props = { floor: Floor | null; onClose: () => void };
+/** Width from which the controls move into a left sidebar and the plan gets the full height. */
+const WIDE_BREAKPOINT = 800;
 
-/** Full floor plan: raster drawing with the room outlines overlaid. */
-export function FloorPlanModal({ floor, onClose }: Props) {
+type Props = {
+  floor: Floor | null;
+  onSelect: (floor: Floor) => void;
+  /** Back to the building view. */
+  onClose: () => void;
+};
+
+/**
+ * Full-screen floor plan. The plan takes all space not used by controls:
+ * wide screens put controls in a sidebar, narrow ones in a top bar and bottom floor row.
+ */
+export function FloorPlanModal({ floor, onSelect, onClose }: Props) {
+  const wide = useWindowDimensions().width >= WIDE_BREAKPOINT;
+  const [room, setRoom] = useState<Room | null>(null);
+  const [listOpen, setListOpen] = useState(false);
+  const [planBox, setPlanBox] = useState({ width: 0, height: 0 });
+  const planSquare = Math.min(planBox.width, planBox.height);
+  const rooms = useMemo(() => (floor ? getRooms(floor.id) : []), [floor]);
+  const regions = useMemo(() => (floor ? getRoomRegions(floor.svg) : []), [floor]);
+  const otherRooms = useMemo(() => (floor ? getOtherRooms(floor.id) : []), [floor]);
+  const svg = useMemo(() => (floor ? highlightRoom(floor.svg, room) : ''), [floor, room]);
+
+  // A room belongs to one floor: clear the selection when another floor opens or the view closes.
+  useEffect(() => {
+    setRoom((r) => (r && r.floor === floor?.id ? r : null));
+    setListOpen(false);
+  }, [floor?.id]);
+
+  const pick = (r: Room | null) => {
+    setRoom(r);
+    // A match on another floor switches to that floor first.
+    const target = r && r.floor !== floor?.id ? MOLSON_FLOORS.find((f) => f.id === r.floor) : null;
+    if (target) onSelect(target);
+    setListOpen(false);
+  };
+
+  const index = floor ? MOLSON_FLOORS.findIndex((f) => f.id === floor.id) : -1;
+  const lower = MOLSON_FLOORS[index - 1];
+  const upper = MOLSON_FLOORS[index + 1];
+
+  // Web shortcuts: Esc = back to building, ↑/↓ = next/previous floor.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !floor) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'ArrowUp' && upper) onSelect(upper);
+      else if (e.key === 'ArrowDown' && lower) onSelect(lower);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [floor, lower, upper, onClose, onSelect]);
+
+  const back = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Back to building"
+      onPress={onClose}
+      style={({ pressed }) => [styles.back, pressed && styles.pressed]}
+    >
+      <ThemedText type="link">← Back to building</ThemedText>
+    </Pressable>
+  );
+
+  const title = (
+    <View>
+      <ThemedText type="small" themeColor="textSecondary">
+        Molson Building
+      </ThemedText>
+      <ThemedText type="subtitle" accessibilityRole="header">
+        {floor?.label}
+      </ThemedText>
+    </View>
+  );
+
   return (
-    <Modal visible={!!floor} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        {/* Inner Pressable swallows taps so only the backdrop closes the modal. */}
-        <Pressable style={styles.sheetWrap}>
-          <ThemedView type="backgroundElement" style={styles.sheet}>
-            <View style={styles.header}>
-              <ThemedText type="subtitle">Molson Building · {floor?.label}</ThemedText>
-              <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={onClose}>
-                <ThemedText type="link">Close</ThemedText>
+    <Modal visible={!!floor} animationType="fade" onRequestClose={onClose}>
+      <ThemedView style={styles.root}>
+        <SafeAreaView style={[styles.layout, wide && styles.layoutWide]}>
+          {wide ? (
+            <ThemedView type="backgroundElement" style={styles.sidebar}>
+              {back}
+              {title}
+              <FloorSwitcher selectedId={floor?.id} onSelect={onSelect} />
+              <RoomList
+                rooms={rooms}
+                otherRooms={otherRooms}
+                selectedCode={room?.code ?? null}
+                onSelect={pick}
+              />
+              {Platform.OS === 'web' && (
+                <ThemedText type="small" themeColor="textSecondary">
+                  ↑ ↓ change floor{'\n'}Esc back to building
+                </ThemedText>
+              )}
+            </ThemedView>
+          ) : (
+            <ThemedView type="backgroundElement" style={styles.topBar}>
+              {back}
+              {title}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: listOpen }}
+                onPress={() => setListOpen((o) => !o)}
+                style={({ pressed }) => [styles.roomsButton, pressed && styles.pressed]}
+              >
+                <ThemedText type="link">
+                  {room ? `Room ${room.label} ✎` : 'Find a room ▾'}
+                </ThemedText>
               </Pressable>
-            </View>
+            </ThemedView>
+          )}
+
+          <View style={styles.plan} onLayout={(e) => setPlanBox(e.nativeEvent.layout)}>
             {floor && (
-              <View style={styles.plan}>
-                {floor.image ? (
-                  <Image source={floor.image} style={StyleSheet.absoluteFill} contentFit="contain" />
-                ) : (
-                  <View style={[StyleSheet.absoluteFill, styles.blank]} />
-                )}
+              <>
+                <Image source={floor.image} style={StyleSheet.absoluteFill} contentFit="contain" />
                 <Image
-                  source={{ uri: `data:image/svg+xml;utf8,${encodeURIComponent(floor.svg)}` }}
+                  source={{
+                    uri: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`,
+                  }}
                   style={StyleSheet.absoluteFill}
                   contentFit="contain"
                 />
-              </View>
+                <View
+                  pointerEvents="box-none"
+                  style={{
+                    position: 'absolute',
+                    width: planSquare,
+                    height: planSquare,
+                    left: (planBox.width - planSquare) / 2,
+                    top: (planBox.height - planSquare) / 2,
+                  }}
+                >
+                  {regions.map((r) => {
+                    const target = rooms.find((x) => x.code === r.code);
+                    if (!target) return null;
+                    const selected = r.code === room?.code;
+                    return (
+                      <Pressable
+                        key={r.code}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Room ${target.label}${selected ? ', selected' : ''}`}
+                        onPress={() => pick(selected ? null : target)}
+                        style={[
+                          styles.region,
+                          {
+                            left: `${(r.x / 1024) * 100}%`,
+                            top: `${(r.y / 1024) * 100}%`,
+                            width: `${(r.width / 1024) * 100}%`,
+                            height: `${(r.height / 1024) * 100}%`,
+                          },
+                        ]}
+                      />
+                    );
+                  })}
+                </View>
+              </>
             )}
-          </ThemedView>
-        </Pressable>
-      </Pressable>
+            {!wide && listOpen && (
+              <ThemedView type="backgroundElement" style={styles.roomsPanel}>
+                <RoomList
+                  rooms={rooms}
+                  otherRooms={otherRooms}
+                  selectedCode={room?.code ?? null}
+                  onSelect={pick}
+                />
+              </ThemedView>
+            )}
+          </View>
+
+          {!wide && (
+            <ThemedView type="backgroundElement" style={styles.bottomBar}>
+              <FloorSwitcher selectedId={floor?.id} onSelect={onSelect} />
+            </ThemedView>
+          )}
+        </SafeAreaView>
+      </ThemedView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  root: { flex: 1 },
+  layout: { flex: 1 },
+  layoutWide: { flexDirection: 'row' },
+  sidebar: { width: 300, padding: Spacing.three, gap: Spacing.three },
+  topBar: { padding: Spacing.three, gap: Spacing.one },
+  bottomBar: { padding: Spacing.three },
+  back: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  roomsButton: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  roomsPanel: {
+    ...StyleSheet.absoluteFill,
     padding: Spacing.three,
   },
-  sheetWrap: { width: '100%', maxWidth: 760 },
-  sheet: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.three },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  plan: { width: '100%', aspectRatio: 1, borderRadius: Spacing.two, overflow: 'hidden' },
-  blank: { backgroundColor: '#ffffff' },
+  // Invisible hit area over each room outline; hover tint hints that it's clickable.
+  region: { position: 'absolute', cursor: 'pointer' },
+  pressed: { opacity: 0.7 },
+  // White so the drawing stays legible in dark mode.
+  plan: { flex: 1, backgroundColor: '#ffffff' },
 });

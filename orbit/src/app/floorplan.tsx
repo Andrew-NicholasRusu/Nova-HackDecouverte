@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BuildingViewer } from '@/components/floorplan/building-viewer';
 import { FloorPlanModal } from '@/components/floorplan/floor-plan-modal';
+import { FloorSwitcher } from '@/components/floorplan/floor-switcher';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Floor } from '@/constants/floorplans';
@@ -19,14 +20,16 @@ export default function FloorplanScreen() {
         contentContainerStyle={[
           styles.content,
           { paddingTop: insets.top + Spacing.six, paddingBottom: BottomTabInset + Spacing.five },
-        ]}>
+        ]}
+      >
         <ThemedText type="subtitle">Molson Building</ThemedText>
         <ThemedText themeColor="textSecondary" style={styles.hint}>
-          Hover a floor to highlight it, then click to open its plan.
+          Hover a floor to highlight it, then click to open its plan. Or pick one below.
         </ThemedText>
         <BuildingViewer onSelect={setSelected} />
+        <FloorSwitcher onSelect={setSelected} />
       </ScrollView>
-      <FloorPlanModal floor={selected} onClose={() => setSelected(null)} />
+      <FloorPlanModal floor={selected} onSelect={setSelected} onClose={() => setSelected(null)} />
     </ThemedView>
   );
 }

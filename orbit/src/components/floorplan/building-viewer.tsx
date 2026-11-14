@@ -36,7 +36,8 @@ export function BuildingViewer({ onSelect }: Props) {
                 height: `${band.height}%`,
               },
               active && styles.bandActive,
-            ]}>
+            ]}
+          >
             {active && (
               <View style={styles.tag}>
                 <ThemedText type="smallBold" style={styles.tagText}>
@@ -65,7 +66,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'transparent',
+    // Always-visible outline so the clickable floors are discoverable without hovering.
+    borderColor: 'rgba(255, 255, 255, 0.55)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    cursor: 'pointer',
   },
   bandActive: {
     backgroundColor: 'rgba(145, 35, 56, 0.45)',
