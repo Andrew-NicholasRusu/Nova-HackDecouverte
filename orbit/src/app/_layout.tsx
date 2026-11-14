@@ -5,6 +5,7 @@ import { Colors } from '@/constants/theme';
 import { AuthScreen } from '@/features/auth/auth-screen';
 import { OnboardingScreen } from '@/features/onboarding/onboarding-screen';
 import { ProfileSetupError } from '@/features/profile/profile-setup-error';
+import { ScheduleProvider } from '@/features/schedule/schedule-provider';
 import { useTheme } from '@/hooks/use-theme';
 import { AuthProvider, useAuth } from '@/providers/auth-provider';
 import { ProfileProvider, useProfileState } from '@/providers/profile-provider';
@@ -41,18 +42,22 @@ function AppGate() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        headerTintColor: theme.accent,
-        headerStyle: { backgroundColor: theme.backgroundElement },
-        headerTitleStyle: { color: theme.text },
-      }}>
-      <Stack.Screen name="(tabs)" />
-      {/* Native gets a back header; web screens render their own Back link. */}
-      <Stack.Screen name="settings" options={{ title: 'Settings', headerShown: !isWeb }} />
-      <Stack.Screen name="floorplan" options={{ title: 'Floor plans', headerShown: true }} />
-    </Stack>
+    <ScheduleProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          headerTintColor: theme.accent,
+          headerStyle: { backgroundColor: theme.backgroundElement },
+          headerTitleStyle: { color: theme.text },
+        }}>
+        <Stack.Screen name="(tabs)" />
+        {/* Native gets a back header; web screens render their own Back link. */}
+        <Stack.Screen name="settings" options={{ title: 'Settings', headerShown: !isWeb }} />
+        <Stack.Screen name="class-editor" options={{ title: 'Class', headerShown: !isWeb }} />
+        <Stack.Screen name="import-schedule" options={{ title: 'Import schedule', headerShown: !isWeb }} />
+        <Stack.Screen name="floorplan" options={{ title: 'Floor plans', headerShown: true }} />
+      </Stack>
+    </ScheduleProvider>
   );
 }
 

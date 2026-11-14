@@ -9,22 +9,102 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Radius, Spacing } from '@/constants/theme';
 import { useBuildings } from '@/features/navigator/use-buildings';
 import { campusName, type Profile } from '@/features/profile/profile-schema';
+import { classesOn, upcoming } from '@/core/schedule/logic';
+import { WEEKDAYS, formatDuration, formatTime, weekdayOf } from '@/core/schedule/time';
+import { classColor } from '@/features/schedule/class-colors';
+import { location } from '@/features/schedule/class-row';
+import { useSchedule } from '@/features/schedule/schedule-provider';
+import { useNow } from '@/features/schedule/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { isHovered } from '@/lib/pressable';
+import { useThemePreference } from '@/providers/theme-preference';
 
 /* ---------- My Schedule ---------- */
 
 export function ScheduleCard() {
+  const theme = useTheme();
+  const { scheme } = useThemePreference();
+  const { state } = useSchedule();
+  const now = useNow();
+
+  if (state.status === 'loading') {
+    return (
+      <SectionCard icon="schedule" title="My Schedule" href="/schedule">
+        <Skeleton width="40%" />
+        <Skeleton width="70%" height={24} />
+        <Skeleton width="50%" />
+      </SectionCard>
+    );
+  }
+
+  const classes = state.status === 'ready' ? state.classes : [];
+  const { current, next } = upcoming(classes, now);
+  const laterToday = classesOn(classes, now.date).filter(
+    (o) => o.start > now.minutes && o.event.id !== next?.event.id,
+  );
+
+  if (!current && !next) {
+    return (
+      <SectionCard icon="schedule" title="My Schedule" href="/schedule">
+        <View style={styles.empty}>
+          <ThemedText type="heading">
+            {classes.length ? 'No classes in the next two weeks' : 'No upcoming class'}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {state.status === 'error'
+              ? "Your schedule couldn't be loaded."
+              : 'Add or import your classes to see your next class, a countdown and today’s schedule here.'}
+          </ThemedText>
+        </View>
+        <Button label="Add your classes" onPress={() => router.push('/schedule')} />
+      </SectionCard>
+    );
+  }
+
+  const focus = current ?? next!;
+  const label = current
+    ? `Now · ends in ${formatDuration(current.end - now.minutes)}`
+    : `Next class · in ${formatDuration(next!.minutesUntil)}`;
+
   return (
     <SectionCard icon="schedule" title="My Schedule" href="/schedule">
-      <View style={styles.empty}>
-        <ThemedText type="heading">No upcoming class</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          Add or import your classes to see your next class, a countdown and today&apos;s schedule
-          here.
-        </ThemedText>
+      <View style={styles.nextRow}>
+        <View style={[styles.nextBar, { backgroundColor: classColor(focus.event.color, scheme) }]} />
+        <View style={styles.flexGap}>
+          <ThemedText type="smallBold" themeColor="accent">
+            {label}
+          </ThemedText>
+          <ThemedText type="subtitle">{focus.event.course_code}</ThemedText>
+          {focus.event.course_title ? <ThemedText type="small">{focus.event.course_title}</ThemedText> : null}
+          <ThemedText type="small" themeColor="textSecondary">
+            {formatTime(focus.start)} – {formatTime(focus.end)} · {location(focus.event)}
+            {focus.date !== now.date ? ` · ${WEEKDAYS[weekdayOf(focus.date) - 1].long}` : ''}
+          </ThemedText>
+        </View>
       </View>
-      <Button label="Add your classes" onPress={() => router.push('/schedule')} />
+      {laterToday.length > 0 && (
+        <View style={[styles.later, { borderColor: theme.border }]}>
+          <ThemedText type="smallBold">Later today</ThemedText>
+          {laterToday.slice(0, 3).map((o) => (
+            <View key={o.event.id} style={styles.laterRow}>
+              <ThemedText type="small" style={styles.flex} numberOfLines={1}>
+                {o.event.course_code}
+                {o.event.course_title ? ` – ${o.event.course_title}` : ''}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {formatTime(o.start)} – {formatTime(o.end)}
+              </ThemedText>
+            </View>
+          ))}
+        </View>
+      )}
+      {focus.event.building_code ? (
+        <Button
+          label={`Find ${focus.event.building_code}`}
+          variant="secondary"
+          onPress={() => router.push({ pathname: '/navigator', params: { q: focus.event.building_code } })}
+        />
+      ) : null}
     </SectionCard>
   );
 }
@@ -172,6 +252,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: Spacing.two },
   center: { textAlign: 'center' },
   empty: { gap: Spacing.one },
+  flexGap: { flex: 1, gap: Spacing.half },
+  nextRow: { flexDirection: 'row', gap: Spacing.three },
+  nextBar: { width: 4, borderRadius: Radius.pill },
+  later: { borderTopWidth: 1, paddingTop: Spacing.three, gap: Spacing.two },
+  laterRow: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center' },
   campusPanel: { borderRadius: Radius.lg, padding: Spacing.three, gap: Spacing.two },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   chip: {
