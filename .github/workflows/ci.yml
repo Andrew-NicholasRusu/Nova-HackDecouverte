@@ -23,3 +23,6 @@ jobs:
       - run: npx expo lint
       - run: npm test
       - run: npx expo export -p web
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          EXPO_PUBLIC_SUPABASE_KEY: placeholder-anon-key
