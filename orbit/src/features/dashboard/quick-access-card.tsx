@@ -5,22 +5,23 @@ import { ThemedText } from '@/components/themed-text';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Opacity, Radius, Spacing, TouchTarget } from '@/constants/theme';
-import { DAY_NAMES, formatClock, useSchedule, WEEK_ORDER } from '@/features/schedule/use-schedule';
+import { WEEKDAY_SHORT, WEEKDAYS } from '@/features/schedule/model';
+import { useClassEvents } from '@/features/schedule/store';
 import { useTheme } from '@/hooks/use-theme';
 import { useQuickActions, type QuickAction } from './quick-actions';
 
 export function QuickAccessCard() {
   const theme = useTheme();
   const { selected } = useQuickActions();
-  const { entries } = useSchedule();
+  const { events } = useClassEvents();
 
   function run(a: QuickAction) {
     if (a.kind === 'share') {
-      const text = WEEK_ORDER.flatMap((d) =>
-        entries
-          .filter((e) => e.day === d)
-          .sort((x, y) => x.start.localeCompare(y.start))
-          .map((e) => `${DAY_NAMES[d].slice(0, 3)} ${formatClock(e.start)}–${formatClock(e.end)}  ${e.code}${e.room ? ` (${e.room})` : ''}`),
+      const text = WEEKDAYS.flatMap((d) =>
+        events
+          .filter((e) => e.days.includes(d))
+          .sort((x, y) => x.startTime.localeCompare(y.startTime))
+          .map((e) => `${WEEKDAY_SHORT[d]} ${e.startTime}–${e.endTime}  ${e.courseCode}${e.room ? ` (${e.buildingCode} ${e.room})` : ''}`),
       ).join('\n');
       if (text) Share.share({ message: text });
       else router.push('/schedule');

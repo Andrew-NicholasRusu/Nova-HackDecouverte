@@ -50,6 +50,7 @@ export function CardHeader({ icon, title, actionLabel, onAction, sample }: Heade
 
 const styles = StyleSheet.create({
   card: {
+    flexGrow: 1,
     borderRadius: Radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
     padding: Spacing.four,

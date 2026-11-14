@@ -1,163 +1,287 @@
-import { useState } from 'react';
-import { Pressable, Share, StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader } from '@/components/ui/card';
-import { ChoiceChips } from '@/components/ui/choice-chips';
-import { Icon } from '@/components/ui/icon';
+import { Card } from '@/components/ui/card';
+import { Chip } from '@/components/ui/chip';
 import { Screen } from '@/components/ui/screen';
-import { EmptyState } from '@/components/ui/state-views';
-import { TextField } from '@/components/ui/text-field';
-import { Opacity, Spacing, TouchTarget } from '@/constants/theme';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, ErrorState } from '@/components/ui/state-views';
+import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { ClassBlock } from '@/features/schedule/class-block';
+import { ClassForm } from '@/features/schedule/class-form';
 import {
-  DAY_NAMES,
-  formatClock,
-  parseTime,
-  useSchedule,
-  WEEK_ORDER,
-  type ClassEntry,
-} from '@/features/schedule/use-schedule';
-import { useLayout } from '@/hooks/use-layout';
+  calculateFreePeriods,
+  calculateScheduleConflicts,
+  occurrencesOnDate,
+  type Occurrence,
+} from '@/features/schedule/engine';
+import { formatDateLabel, formatDays, formatDuration, useNow } from '@/features/schedule/format';
+import { parseIcs, type ImportDraft } from '@/features/schedule/ics';
+import { ImportReview } from '@/features/schedule/import-review';
+import {
+  addDays,
+  emptyClassInput,
+  startOfWeek,
+  toLocalDate,
+  type ClassEvent,
+} from '@/features/schedule/model';
+import { pickCalendarFile } from '@/features/schedule/pick-calendar-file';
+import { createClasses, deleteClass, loadClassEvents, updateClass, useClassEvents } from '@/features/schedule/store';
 
-const DAY_OPTIONS = WEEK_ORDER.map((d) => ({ value: d, label: DAY_NAMES[d].slice(0, 3) }));
+type Editor = { mode: 'new' } | { mode: 'edit'; event: ClassEvent };
+type PendingImport = { fileName: string; drafts: ImportDraft[]; skipped: number };
 
-function shareText(entries: ClassEntry[]) {
-  return WEEK_ORDER.flatMap((d) =>
-    entries
-      .filter((e) => e.day === d)
-      .sort((a, b) => a.start.localeCompare(b.start))
-      .map((e) => `${DAY_NAMES[d].slice(0, 3)} ${formatClock(e.start)}–${formatClock(e.end)}  ${e.code} ${e.title}${e.room ? ` (${e.room})` : ''}`),
-  ).join('\n');
+function DayList({
+  occurrences,
+  now,
+  conflictIds,
+  onOpen,
+}: {
+  occurrences: Occurrence[];
+  now: Date;
+  conflictIds: Set<string>;
+  onOpen: (e: ClassEvent) => void;
+}) {
+  const breaks = calculateFreePeriods(occurrences, 30);
+  return (
+    <View style={styles.list}>
+      {occurrences.map((o, i) => {
+        const gap = breaks.find((b) => b.end.getTime() === o.start.getTime());
+        const status = o.start <= now && o.end > now ? 'now' : o.end <= now ? 'done' : conflictIds.has(o.event.id) ? 'conflict' : undefined;
+        return (
+          <View key={`${o.event.id}-${i}`} style={styles.list}>
+            {gap && i > 0 ? (
+              <ThemedText type="caption" themeColor="textSecondary" style={styles.break}>
+                Break · {formatDuration(gap.minutes)}
+              </ThemedText>
+            ) : null}
+            <ClassBlock event={o.event} status={status} onPress={() => onOpen(o.event)} />
+          </View>
+        );
+      })}
+    </View>
+  );
 }
 
 export default function ScheduleScreen() {
-  const { entries, ready, add, remove } = useSchedule();
-  const { isWide } = useLayout();
-  const [code, setCode] = useState('');
-  const [title, setTitle] = useState('');
-  const [room, setRoom] = useState('');
-  const [day, setDay] = useState<number | undefined>(1);
-  const [start, setStart] = useState('');
-  const [end, setEnd] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const theme = useTheme();
+  const schedule = useClassEvents();
+  const now = useNow();
+  const today = toLocalDate(now);
 
-  function submit() {
-    const s = parseTime(start);
-    const e = parseTime(end);
-    if (!code.trim()) return setError('Enter the course code, for example COMP 352.');
-    if (day === undefined) return setError('Pick the day of the week.');
-    if (!s || !e) return setError('Enter times as 24 h HH:MM, for example 13:15.');
-    if (e.h * 60 + e.m <= s.h * 60 + s.m) return setError('The class has to end after it starts.');
-    add({
-      code: code.trim().toUpperCase(),
-      title: title.trim(),
-      room: room.trim().toUpperCase(),
-      day,
-      start: `${String(s.h).padStart(2, '0')}:${String(s.m).padStart(2, '0')}`,
-      end: `${String(e.h).padStart(2, '0')}:${String(e.m).padStart(2, '0')}`,
-    });
-    setError(null);
-    setCode('');
-    setTitle('');
-    setRoom('');
-    setStart('');
-    setEnd('');
+  const [view, setView] = useState<'day' | 'week'>('week');
+  const [date, setDate] = useState(today);
+  const [editor, setEditor] = useState<Editor | null>(null);
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const [notice, setNotice] = useState<{ text: string; tone: 'success' | 'danger' } | null>(null);
+
+  const events = schedule.events;
+  const conflicts = useMemo(() => calculateScheduleConflicts(events), [events]);
+  const conflictIds = useMemo(() => new Set(conflicts.flatMap((c) => [c.a.id, c.b.id])), [conflicts]);
+
+  async function startImport() {
+    setNotice(null);
+    try {
+      const file = await pickCalendarFile();
+      if (!file) return;
+      const { drafts, skipped } = parseIcs(file.text);
+      setPendingImport({ fileName: file.name, drafts, skipped });
+    } catch (e) {
+      setNotice({ text: e instanceof Error ? e.message : 'Could not read that file.', tone: 'danger' });
+    }
   }
 
-  const form = (
-    <Card style={styles.grow}>
-      <CardHeader icon="add" title="Add a class" />
-      <TextField label="Course code" value={code} onChangeText={setCode} autoCapitalize="characters" placeholder="COMP 352" />
-      <TextField label="Course name (optional)" value={title} onChangeText={setTitle} placeholder="Data Structures and Algorithms" />
-      <TextField label="Room (optional)" value={room} onChangeText={setRoom} autoCapitalize="characters" placeholder="H-820" />
-      <ChoiceChips label="Day" options={DAY_OPTIONS} value={day} onChange={setDay} />
-      <View style={styles.times}>
-        <View style={styles.grow}>
-          <TextField label="Starts (24 h)" value={start} onChangeText={setStart} placeholder="13:15" keyboardType="numbers-and-punctuation" />
-        </View>
-        <View style={styles.grow}>
-          <TextField label="Ends (24 h)" value={end} onChangeText={setEnd} placeholder="14:30" keyboardType="numbers-and-punctuation" onSubmitEditing={submit} />
-        </View>
-      </View>
-      {error ? (
-        <ThemedText type="small" themeColor="danger" accessibilityRole="alert">
-          {error}
-        </ThemedText>
-      ) : null}
-      <Button label="Save class" icon="check" onPress={submit} />
-    </Card>
-  );
-
-  const week = (
-    <View style={[styles.grow, styles.week]}>
-      {ready && entries.length === 0 ? (
-        <EmptyState
-          title="No classes yet"
-          message="Add your first class and it shows up here and on your home screen with a live countdown."
-        />
-      ) : (
-        WEEK_ORDER.map((d) => {
-          const list = entries.filter((e) => e.day === d).sort((a, b) => a.start.localeCompare(b.start));
-          if (!list.length) return null;
-          return (
-            <Card key={d}>
-              <ThemedText type="heading" accessibilityRole="header">
-                {DAY_NAMES[d]}
-              </ThemedText>
-              {list.map((e) => (
-                <View key={e.id} style={styles.entry}>
-                  <View style={styles.entryText}>
-                    <ThemedText type="smallBold">
-                      {e.code}
-                      {e.title ? ` · ${e.title}` : ''}
-                    </ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {formatClock(e.start)} – {formatClock(e.end)}
-                      {e.room ? ` · ${e.room}` : ''}
-                    </ThemedText>
-                  </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove ${e.code} on ${DAY_NAMES[d]}`}
-                    onPress={() => remove(e.id)}
-                    style={({ pressed }) => [styles.remove, pressed && { opacity: Opacity.pressed }]}>
-                    <Icon name="delete" size="lg" color="textSecondary" />
-                  </Pressable>
-                </View>
-              ))}
-            </Card>
-          );
-        })
-      )}
-      {entries.length > 0 && (
-        <Button
-          label="Share schedule"
-          variant="secondary"
-          icon="ios-share"
-          onPress={() => Share.share({ message: shareText(entries) })}
-        />
-      )}
-    </View>
-  );
+  const step = view === 'day' ? 1 : 7;
+  const weekStart = startOfWeek(date);
+  const rangeLabel =
+    view === 'day'
+      ? date === today
+        ? `Today · ${formatDateLabel(date, 'short')}`
+        : formatDateLabel(date)
+      : `Week of ${formatDateLabel(weekStart, 'short')}`;
 
   return (
-    <Screen title="Schedule" subtitle="Your week, saved on this device">
-      <View style={[styles.layout, isWide && styles.layoutWide]}>
-        {form}
-        {week}
+    <Screen title="Schedule" subtitle="Your classes, in one place">
+      <View style={styles.actions}>
+        <View style={styles.flex}>
+          <Button label="Add class" onPress={() => setEditor({ mode: 'new' })} />
+        </View>
+        <View style={styles.flex}>
+          <Button label="Import .ics" variant="secondary" onPress={startImport} />
+        </View>
       </View>
+
+      {notice ? (
+        <ThemedText type="small" themeColor={notice.tone} accessibilityRole="alert">
+          {notice.text}
+        </ThemedText>
+      ) : null}
+
+      {schedule.status === 'error' ? <ErrorState message={schedule.error} onRetry={loadClassEvents} /> : null}
+
+      {(schedule.status === 'loading' || schedule.status === 'idle') && events.length === 0 ? (
+        <Card>
+          <Skeleton width="40%" height={18} />
+          <Skeleton />
+          <Skeleton width="70%" />
+        </Card>
+      ) : null}
+
+      {schedule.status === 'ready' && events.length === 0 ? (
+        <EmptyState
+          title="No classes yet"
+          message="Add your classes one by one, or import the .ics calendar file exported from your student portal."
+          actionLabel="Import .ics"
+          onAction={startImport}
+        />
+      ) : null}
+
+      {events.length > 0 ? (
+        <>
+          {conflicts.length > 0 ? (
+            <Card style={{ borderColor: theme.warning }} accessibilityRole="alert">
+              <ThemedText type="smallBold" themeColor="warning">
+                {conflicts.length === 1 ? '1 schedule conflict' : `${conflicts.length} schedule conflicts`}
+              </ThemedText>
+              {conflicts.map((c) => (
+                <ThemedText key={`${c.a.id}-${c.b.id}`} type="small" themeColor="textSecondary">
+                  {c.a.courseCode} ({c.a.startTime}–{c.a.endTime}) overlaps {c.b.courseCode} ({c.b.startTime}–
+                  {c.b.endTime}) on {formatDays(c.days)}
+                </ThemedText>
+              ))}
+            </Card>
+          ) : null}
+
+          <View style={styles.toolbar}>
+            <View style={styles.chips}>
+              <Chip label="Day" selected={view === 'day'} onPress={() => setView('day')} />
+              <Chip label="Week" selected={view === 'week'} onPress={() => setView('week')} />
+            </View>
+            <View style={styles.chips}>
+              <Chip label="‹" accessibilityLabel={`Previous ${view}`} onPress={() => setDate(addDays(date, -step))} />
+              <Chip label="Today" selected={date === today} onPress={() => setDate(today)} />
+              <Chip label="›" accessibilityLabel={`Next ${view}`} onPress={() => setDate(addDays(date, step))} />
+            </View>
+          </View>
+
+          <ThemedText type="subtitle">{rangeLabel}</ThemedText>
+
+          {view === 'day' ? (
+            (() => {
+              const occ = occurrencesOnDate(events, date);
+              return occ.length > 0 ? (
+                <DayList
+                  occurrences={occ}
+                  now={now}
+                  conflictIds={conflictIds}
+                  onOpen={(event) => setEditor({ mode: 'edit', event })}
+                />
+              ) : (
+                <Card>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    No classes on this day.
+                  </ThemedText>
+                </Card>
+              );
+            })()
+          ) : (
+            [0, 1, 2, 3, 4, 5, 6].map((offset) => {
+              const day = addDays(weekStart, offset);
+              const occ = occurrencesOnDate(events, day);
+              // Hide empty weekends to keep the week compact.
+              if (offset >= 5 && occ.length === 0) return null;
+              return (
+                <View key={day} style={styles.list}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${formatDateLabel(day)}`}
+                    onPress={() => {
+                      setDate(day);
+                      setView('day');
+                    }}
+                    style={styles.dayHeader}>
+                    <ThemedText type="smallBold" themeColor={day === today ? 'accent' : 'text'}>
+                      {formatDateLabel(day, 'short')}
+                      {day === today ? ' · Today' : ''}
+                    </ThemedText>
+                    <ThemedText type="caption" themeColor="textSecondary">
+                      {occ.length === 0 ? 'Free' : `${occ.length} ${occ.length === 1 ? 'class' : 'classes'}`}
+                    </ThemedText>
+                  </Pressable>
+                  {occ.length > 0 ? (
+                    <DayList
+                      occurrences={occ}
+                      now={now}
+                      conflictIds={conflictIds}
+                      onOpen={(event) => setEditor({ mode: 'edit', event })}
+                    />
+                  ) : null}
+                </View>
+              );
+            })
+          )}
+
+          <View style={styles.all}>
+            <ThemedText type="subtitle">All classes · {events.length}</ThemedText>
+            {events.map((e) => (
+              <ClassBlock
+                key={e.id}
+                event={e}
+                status={conflictIds.has(e.id) ? 'conflict' : undefined}
+                detail={`${formatDays(e.days)} · ${formatDateLabel(e.startDate, 'short')} → ${formatDateLabel(e.endDate, 'short')}`}
+                onPress={() => setEditor({ mode: 'edit', event: e })}
+              />
+            ))}
+          </View>
+        </>
+      ) : null}
+
+      {editor ? (
+        <ClassForm
+          title={editor.mode === 'new' ? 'New class' : 'Edit class'}
+          initial={editor.mode === 'new' ? emptyClassInput(today) : editor.event}
+          onCancel={() => setEditor(null)}
+          onSubmit={async (input) => {
+            if (editor.mode === 'new') await createClasses([input], 'manual');
+            else await updateClass(editor.event.id, input);
+            setEditor(null);
+          }}
+          onDelete={
+            editor.mode === 'edit'
+              ? async () => {
+                  await deleteClass(editor.event.id);
+                  setEditor(null);
+                }
+              : undefined
+          }
+        />
+      ) : null}
+
+      {pendingImport ? (
+        <ImportReview
+          {...pendingImport}
+          existing={events}
+          onCancel={() => setPendingImport(null)}
+          onDone={(added) => {
+            setPendingImport(null);
+            setNotice({ text: `Added ${added} ${added === 1 ? 'class' : 'classes'} to your schedule.`, tone: 'success' });
+          }}
+        />
+      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  layout: { gap: Spacing.four },
-  layoutWide: { flexDirection: 'row', alignItems: 'flex-start' },
-  grow: { flex: 1 },
-  week: { gap: Spacing.three },
-  times: { flexDirection: 'row', gap: Spacing.three },
-  entry: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three, minHeight: TouchTarget },
-  entryText: { flexShrink: 1, gap: Spacing.half },
-  remove: { width: TouchTarget, height: TouchTarget, alignItems: 'center', justifyContent: 'center' },
+  actions: { flexDirection: 'row', gap: Spacing.two },
+  flex: { flex: 1 },
+  toolbar: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: Spacing.two },
+  chips: { flexDirection: 'row', gap: Spacing.two },
+  list: { gap: Spacing.two },
+  break: { textAlign: 'center' },
+  dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: Spacing.two },
+  all: { gap: Spacing.two, marginTop: Spacing.four },
 });
