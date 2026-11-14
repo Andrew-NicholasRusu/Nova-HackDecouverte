@@ -66,9 +66,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    // Always-visible outline so the clickable floors are discoverable without hovering.
-    borderColor: 'rgba(255, 255, 255, 0.55)',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'transparent',
     cursor: 'pointer',
   },
   bandActive: {
