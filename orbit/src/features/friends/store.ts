@@ -13,6 +13,7 @@ export type SharingLevel = 'private' | 'availability' | 'full';
 
 export type StudentSummary = {
   id: string;
+  avatarUrl?: string | null;
   username: string;
   displayName: string;
   campus: 'SGW' | 'LOY' | null;
@@ -66,9 +67,10 @@ function friendlyError(error: { code?: string; message: string }) {
   return error.message;
 }
 
-type ProfileRow = { id: string; username: string | null; display_name: string; preferred_campus: 'SGW' | 'LOY' | null };
+type ProfileRow = { id: string; username: string | null; display_name: string; avatar_url?: string | null; preferred_campus: 'SGW' | 'LOY' | null };
 const toStudent = (p: ProfileRow): StudentSummary => ({
   id: p.id,
+  avatarUrl: p.avatar_url ?? null,
   username: p.username ?? '',
   displayName: p.display_name || p.username || 'Student',
   campus: p.preferred_campus,
@@ -125,7 +127,7 @@ export async function loadFriends() {
   const otherIds = [...new Set(rows.map((r) => (r.requester_id === me ? r.addressee_id : r.requester_id)))];
   const profiles = new Map<string, StudentSummary>();
   if (otherIds.length > 0) {
-    const res = await supabase.from('profiles').select('id, username, display_name, preferred_campus').in('id', otherIds);
+    const res = await supabase.from('profiles').select('id, username, display_name, avatar_url, preferred_campus').in('id', otherIds);
     if (res.error) return fail(res.error);
     for (const p of res.data as ProfileRow[]) profiles.set(p.id, toStudent(p));
   }

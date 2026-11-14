@@ -10,10 +10,13 @@ export type Profile = {
   username: string | null;
   display_name: string;
   bio: string | null;
+  avatar_url: string | null;
   preferred_campus: Campus | null;
 };
 
 export type ProfileEdit = Pick<Profile, 'username' | 'display_name' | 'bio' | 'preferred_campus'>;
+
+const PROFILE_COLUMNS = 'id, username, display_name, bio, avatar_url, preferred_campus';
 
 export const USERNAME_RE = /^[a-z0-9_]{3,24}$/;
 
@@ -45,7 +48,7 @@ async function load(userId: string) {
   setState({ status: 'loading', profile: state.userId === userId ? state.profile : null, userId });
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username, display_name, bio, preferred_campus')
+    .select(PROFILE_COLUMNS)
     .eq('id', userId)
     .maybeSingle();
   if (state.userId !== userId) return; // signed out meanwhile
@@ -92,11 +95,20 @@ export async function updateProfile(edit: ProfileEdit) {
       preferred_campus: edit.preferred_campus,
     })
     .eq('id', userId)
-    .select('id, username, display_name, bio, preferred_campus')
+    .select(PROFILE_COLUMNS)
     .single();
   if (error) {
     if (error.code === '23505') throw new Error('That username is taken. Try another one.');
     throw new Error(error.message);
   }
+  setState({ status: 'ready', profile: data as Profile, userId });
+}
+
+/** Sets (or clears) the profile picture URL. The image itself is uploaded by `lib/avatar.ts`. */
+export async function setAvatarUrl(url: string | null) {
+  const userId = state.userId;
+  if (!userId) throw new Error('Not signed in.');
+  const { data, error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId).select(PROFILE_COLUMNS).single();
+  if (error) throw new Error(error.message);
   setState({ status: 'ready', profile: data as Profile, userId });
 }

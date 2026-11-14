@@ -1,28 +1,39 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
+import { ChoiceChips } from '@/components/ui/choice-chips';
 import { Icon } from '@/components/ui/icon';
+import { Pill } from '@/components/ui/pill';
 import { Screen } from '@/components/ui/screen';
-import { Opacity, Radius, Spacing, TouchTarget } from '@/constants/theme';
+import { Elevation, FixedColors, Opacity, Radius, Spacing, TouchTarget } from '@/constants/theme';
 import { MAX_QUICK, QUICK_ACTIONS, useQuickActions } from '@/features/dashboard/quick-actions';
+import { SHARING_HELP, SHARING_LABEL } from '@/features/friends/describe';
+import { setSharingLevel, useFriends, type SharingLevel } from '@/features/friends/store';
+import { ProfileSheet } from '@/features/profile/profile-sheet';
+import { updateProfile, useProfile } from '@/features/profile/use-profile';
+import { useClassEvents } from '@/features/schedule/store';
+import { useLayout } from '@/hooks/use-layout';
 import { useTheme } from '@/hooks/use-theme';
-import { useProfile } from '@/features/profile/use-profile';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth-provider';
 
-export default function SettingsScreen() {
-  const { session } = useAuth();
-  const profile = useProfile();
-  const name = profile?.display_name ?? 'Student';
+const CAMPUS_NAME = { SGW: 'Sir George Williams', LOY: 'Loyola' } as const;
+const CAMPUS_OPTIONS = [
+  { value: 'SGW', label: 'Sir George Williams' },
+  { value: 'LOY', label: 'Loyola' },
+] as const;
+const LEVELS: SharingLevel[] = ['private', 'availability', 'full'];
+const LEVEL_OPTIONS = LEVELS.map((value) => ({ value, label: SHARING_LABEL[value] }));
+
+function QuickAccessSettings() {
   const theme = useTheme();
   const quick = useQuickActions();
   const full = quick.ids.length >= MAX_QUICK;
-
   return (
-    <Screen title="Settings" subtitle="Your account">
       <Card>
         <CardHeader icon="bolt" title="Quick Access shortcuts" />
         <ThemedText type="small" themeColor="textSecondary" accessibilityLiveRegion="polite">
@@ -77,29 +88,192 @@ export default function SettingsScreen() {
         })}
         <Button label="Reset to default" variant="secondary" icon="restore" onPress={quick.reset} />
       </Card>
-      <Card>
-        <CardHeader icon="person" title="Account" />
-        <View style={styles.account}>
-          <Avatar name={name} size="lg" />
-          <View>
-            <ThemedText type="heading">{name}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {session?.user.email}
-            </ThemedText>
-          </View>
+  );
+}
+
+function ProfileCard() {
+  const { session } = useAuth();
+  const profile = useProfile();
+  const schedule = useClassEvents();
+  const friends = useFriends();
+  const { isMedium } = useLayout();
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const name = profile?.display_name ?? 'Student';
+
+  async function setCampus(c: 'SGW' | 'LOY') {
+    if (!profile) return;
+    setError(null);
+    try {
+      await updateProfile({ username: profile.username, display_name: profile.display_name, bio: profile.bio, preferred_campus: c });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update your campus.');
+    }
+  }
+
+  return (
+    <View style={styles.profile}>
+      <View style={styles.profileTop}>
+        <Avatar name={name} uri={profile?.avatar_url} size="xl" onDark />
+        <View style={styles.flex}>
+          <ThemedText type="subtitle" style={styles.onShell} numberOfLines={1}>
+            {name}
+          </ThemedText>
+          <ThemedText type="small" style={styles.onShellMuted} numberOfLines={1}>
+            {profile?.username ? `@${profile.username}` : session?.user.email}
+          </ThemedText>
         </View>
-        <Button label="Sign out" variant="secondary" icon="logout" onPress={() => supabase.auth.signOut()} />
-      </Card>
+        {isMedium ? <Button label="Edit" icon="edit" variant="secondary" disabled={!profile} onPress={() => setEditing(true)} /> : null}
+      </View>
+      {!isMedium ? <Button label="Edit profile" icon="edit" variant="secondary" fullWidth disabled={!profile} onPress={() => setEditing(true)} /> : null}
+      {profile?.bio ? (
+        <ThemedText type="small" style={styles.onShellMuted}>
+          {profile.bio}
+        </ThemedText>
+      ) : null}
+      <View style={styles.stats}>
+        <View style={styles.stat}>
+          <ThemedText type="stat" style={styles.onShell}>
+            {schedule.events.length}
+          </ThemedText>
+          <ThemedText type="caption" style={styles.onShellMuted}>
+            classes
+          </ThemedText>
+        </View>
+        <View style={styles.stat}>
+          <ThemedText type="stat" style={styles.onShell}>
+            {friends.friends.length}
+          </ThemedText>
+          <ThemedText type="caption" style={styles.onShellMuted}>
+            friends
+          </ThemedText>
+        </View>
+        <View style={styles.stat}>
+          <ThemedText type="smallBold" style={styles.gold}>
+            {profile?.preferred_campus ? CAMPUS_NAME[profile.preferred_campus] : 'No campus yet'}
+          </ThemedText>
+          <ThemedText type="caption" style={styles.onShellMuted}>
+            home campus
+          </ThemedText>
+        </View>
+      </View>
+      {profile ? (
+        <View style={styles.campus}>
+          <ThemedText type="caption" style={styles.onShellMuted}>
+            Switch campus: Map, Campus Live and your plan follow it.
+          </ThemedText>
+          <ChoiceChips label="Home campus" options={CAMPUS_OPTIONS} value={profile.preferred_campus ?? undefined} onChange={setCampus} />
+        </View>
+      ) : null}
+      {error ? (
+        <ThemedText type="small" themeColor="danger" accessibilityRole="alert">
+          {error}
+        </ThemedText>
+      ) : null}
+      {editing && profile ? <ProfileSheet profile={profile} onClose={() => setEditing(false)} /> : null}
+    </View>
+  );
+}
+
+function PrivacyCard() {
+  const friends = useFriends();
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  const levels = new Set(friends.friends.map((f) => f.myLevel));
+  const current = levels.size === 1 ? [...levels][0] : undefined;
+
+  async function apply(level: SharingLevel) {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await Promise.all(friends.friends.map((f) => setSharingLevel(f.id, level)));
+      setMessage({ text: `Now sharing: ${SHARING_LABEL[level]} with every friend.`, ok: true });
+    } catch (e) {
+      setMessage({ text: e instanceof Error ? e.message : 'Could not update sharing.', ok: false });
+    }
+    setBusy(false);
+  }
+
+  return (
+    <Card>
+      <CardHeader icon="lock" title="Privacy" />
+      <ThemedText type="small" themeColor="textSecondary">
+        What friends can see of your schedule. You can still set it per friend from the Friends screen.
+      </ThemedText>
+      {friends.friends.length === 0 ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          Add a friend first. New friends start with free/busy times only, never your courses or rooms.
+        </ThemedText>
+      ) : (
+        <>
+          <ChoiceChips label="Share my schedule with all friends" options={LEVEL_OPTIONS} value={current} onChange={(l) => !busy && apply(l)} />
+          <ThemedText type="caption" themeColor="textSecondary">
+            {current ? SHARING_HELP[current] : 'Friends currently have different settings. Pick one to apply it to everyone.'}
+          </ThemedText>
+        </>
+      )}
+      {message ? (
+        <ThemedText type="small" themeColor={message.ok ? 'success' : 'danger'} accessibilityLiveRegion="polite">
+          {message.text}
+        </ThemedText>
+      ) : null}
+    </Card>
+  );
+}
+
+function AboutCard() {
+  return (
+    <Card>
+      <CardHeader icon="info" title="About Orbit" />
+      <ThemedText type="small" themeColor="textSecondary">
+        Buildings and floor plans come from Concordia Open Data. Lines and seats in Campus Live are reported by students, not official Concordia
+        information. Your schedule is private to you unless you share it.
+      </ThemedText>
+      <View style={styles.pills}>
+        <Pill label="Concordia Open Data" />
+        <Pill label="Student reports" />
+      </View>
+      <Button label="Sign out" variant="secondary" icon="logout" onPress={() => supabase.auth.signOut()} />
+    </Card>
+  );
+}
+
+export default function SettingsScreen() {
+  const { isWide } = useLayout();
+  return (
+    <Screen title="Settings" subtitle="Your profile, privacy and home screen">
+      <View style={[styles.cols, isWide && styles.colsRow]}>
+        <View style={[styles.col, isWide && styles.flex]}>
+          <ProfileCard />
+          <PrivacyCard />
+          <AboutCard />
+        </View>
+        <View style={[styles.col, isWide && styles.flex]}>
+          <QuickAccessSettings />
+        </View>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  cols: { gap: Spacing.four },
+  colsRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  col: { gap: Spacing.four },
+  flex: { flex: 1 },
+  profile: { backgroundColor: FixedColors.shell, borderRadius: Radius.xl, padding: Spacing.four, gap: Spacing.three, borderWidth: 1, borderColor: FixedColors.shellBorder, ...Elevation.raised },
+  profileTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  onShell: { color: FixedColors.shellText },
+  onShellMuted: { color: FixedColors.shellMuted },
+  gold: { color: FixedColors.gold },
+  stats: { flexDirection: 'row', gap: Spacing.five, flexWrap: 'wrap' },
+  stat: { gap: Spacing.half },
+  campus: { gap: Spacing.two },
+  pills: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
   optionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   option: { flex: 1, minHeight: TouchTarget + Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   check: { width: Spacing.four, height: Spacing.four, borderRadius: Radius.sm, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   optionText: { flex: 1 },
   move: { flexDirection: 'row' },
   moveBtn: { width: TouchTarget, height: TouchTarget, alignItems: 'center', justifyContent: 'center' },
-  account: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
 });

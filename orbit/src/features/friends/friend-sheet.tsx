@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
@@ -47,6 +48,7 @@ export function FriendSheet({ friend, myEvents, now, onClose }: Props) {
   return (
     <Sheet visible title={friend.displayName} onClose={onClose}>
       <View style={styles.head}>
+        <Avatar name={friend.displayName} uri={friend.avatarUrl} size="xl" />
         <ThemedText type="small" themeColor="textSecondary">
           @{friend.username}
           {friend.campus ? ` · ${friend.campus === 'SGW' ? 'Sir George Williams' : 'Loyola'}` : ''}
@@ -151,7 +153,7 @@ export function FriendSheet({ friend, myEvents, now, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  head: { gap: Spacing.one },
+  head: { gap: Spacing.one, alignItems: 'center' },
   day: { gap: Spacing.half },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   danger: { gap: Spacing.two, marginTop: Spacing.two },

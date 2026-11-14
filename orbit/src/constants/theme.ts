@@ -60,6 +60,10 @@ export const FixedColors = {
   shellBorder: '#232842',
   shellHover: '#1A1F33',
   shellActive: '#912338',
+  shellRaised: '#151A2E',
+  successOnShell: '#4CC38A',
+  warningOnShell: '#E8B04A',
+  dangerOnShell: '#FF7A70',
   gold: '#CBB576',
   /** Hero photo scrim: navy, heavier on the left where the greeting sits. */
   heroScrimStart: 'rgba(15, 19, 32, 0.88)',
@@ -164,7 +168,7 @@ export const Breakpoints = { medium: 720, wide: 1024 } as const;
 
 export const SidebarWidth = 248;
 export const HeroHeight = { compact: 260, wide: 340 } as const;
-export const AvatarSize = { sm: 32, md: 44, lg: 56 } as const;
+export const AvatarSize = { sm: 32, md: 44, lg: 56, xl: 96 } as const;
 export const DotSize = 10;
 export const BadgeSize = 10;
 
@@ -189,4 +193,13 @@ export const Size = {
   roomPanel: 300,
   chipMin: 88,
   rosterName: 220,
+  dropdownMax: 420,
+  searchOpen: 560,
+  pasteHeight: 140,
+  hourHeight: 56,
+  stageViewer: 260,
+  stageInfoMin: 240,
 } as const;
+
+/** Max width of forms and sheets, so inputs never stretch across a desktop screen. */
+export const FormWidth = 640;

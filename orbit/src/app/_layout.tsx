@@ -11,7 +11,9 @@ import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import AppTabs from '@/components/app-tabs';
-import { Colors } from '@/constants/theme';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/button';
+import { Colors, Spacing } from '@/constants/theme';
 import { applyWebTheme } from '@/lib/web-theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthScreen } from '@/features/auth/auth-screen';
@@ -59,6 +61,21 @@ function ProfileGate() {
   return <AppTabs />;
 }
 
+/** Last line of defence: a calm screen instead of a blank page if something throws. */
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+  return (
+    <View style={[styles.center, styles.boundary]}>
+      <ThemedText type="displaySmall" accessibilityRole="header">
+        Something went wrong
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
+        {error.message}
+      </ThemedText>
+      <Button label="Try again" icon="refresh" onPress={retry} />
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const dark = colorScheme === 'dark';
@@ -88,4 +105,6 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  boundary: { gap: Spacing.three, padding: Spacing.four },
+  centerText: { textAlign: 'center' },
 });

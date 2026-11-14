@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Screen } from '@/components/ui/screen';
+import { AuthFrame } from '@/features/auth/auth-frame';
 import { Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
@@ -48,18 +48,24 @@ export function OnboardingScreen({ profile }: { profile: Profile }) {
   }
 
   return (
-    <Screen title="Welcome to ORBIT" subtitle="Two quick things and you're in.">
+    <AuthFrame>
       <Card style={styles.card}>
+        <ThemedText type="subtitle" accessibilityRole="header">
+          Welcome! Two quick things
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          Pick a name and username so classmates can find you. You can add a photo later in Settings.
+        </ThemedText>
         <ProfileFields value={value} onChange={setValue} errors={errors} />
         {error ? (
           <ThemedText type="small" themeColor="danger" accessibilityRole="alert">
             {error}
           </ThemedText>
         ) : null}
-        <Button label={busy ? 'Saving…' : 'Continue'} onPress={submit} disabled={busy} />
+        <Button label={busy ? 'Saving…' : 'Continue'} icon="arrow-forward" onPress={submit} disabled={busy} />
       </Card>
-      <Button label="Sign out" variant="secondary" onPress={() => supabase.auth.signOut()} />
-    </Screen>
+      <Button label="Sign out" variant="ghost" onPress={() => supabase.auth.signOut()} />
+    </AuthFrame>
   );
 }
 

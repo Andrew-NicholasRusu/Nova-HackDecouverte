@@ -5,6 +5,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { SearchBar } from '@/features/search/search-bar';
+
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
 import { Icon } from '@/components/ui/icon';
@@ -12,7 +14,6 @@ import {
   BadgeSize,
   FixedColors,
   HeroHeight,
-  Size,
   Motion,
   Opacity,
   Radius,
@@ -21,7 +22,7 @@ import {
 } from '@/constants/theme';
 import { useLayout } from '@/hooks/use-layout';
 
-type Props = { name?: string; fullName: string; unread: number };
+type Props = { name?: string; fullName: string; avatarUrl?: string | null; unread: number };
 
 function greeting(date = new Date()) {
   const h = date.getHours();
@@ -32,12 +33,13 @@ function greeting(date = new Date()) {
 }
 
 /** Photo banner: greeting, tagline, search entry, notifications and profile. */
-export function Hero({ name, fullName, unread }: Props) {
+export function Hero({ name, fullName, avatarUrl, unread }: Props) {
   const { isWide, isMedium } = useLayout();
   const height = isWide ? HeroHeight.wide : HeroHeight.compact;
 
   return (
     <View style={[styles.hero, { minHeight: height }]}>
+      <View style={styles.clip}>
       <Image
         source={HERO_PHOTO}
         style={StyleSheet.absoluteFill}
@@ -52,17 +54,9 @@ export function Hero({ name, fullName, unread }: Props) {
         end={isMedium ? { x: 1, y: 0.5 } : { x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
+      </View>
       <View style={styles.top}>
-        <Pressable
-          accessibilityRole="search"
-          accessibilityLabel="Search classes and buildings"
-          onPress={() => router.push('/navigator')}
-          style={({ pressed }) => [styles.search, pressed && { opacity: Opacity.pressed }]}>
-          <Icon name="search" size="md" color={FixedColors.shellMuted} />
-          <ThemedText type="small" style={{ color: FixedColors.shellMuted }} numberOfLines={1}>
-            Search classes, buildings…
-          </ThemedText>
-        </Pressable>
+        <SearchBar />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={unread ? `Notifications, ${unread} new` : 'Notifications'}
@@ -76,7 +70,7 @@ export function Hero({ name, fullName, unread }: Props) {
           accessibilityLabel="Open settings"
           onPress={() => router.push('/settings')}
           style={({ pressed }) => pressed && { opacity: Opacity.pressed }}>
-          <Avatar name={fullName} onDark />
+          <Avatar name={fullName} uri={avatarUrl} onDark />
         </Pressable>
       </View>
       <View style={styles.copy}>
@@ -96,27 +90,14 @@ export function Hero({ name, fullName, unread }: Props) {
 
 const styles = StyleSheet.create({
   hero: {
-    borderRadius: Radius.xl,
-    overflow: 'hidden',
+    // No overflow clipping here: the search dropdown must escape the banner. The photo clips itself.
+    zIndex: 20,
     padding: Spacing.four,
     justifyContent: 'space-between',
     gap: Spacing.four,
-    backgroundColor: FixedColors.shell,
   },
+  clip: { ...StyleSheet.absoluteFill, borderRadius: Radius.xl, overflow: 'hidden', backgroundColor: FixedColors.shell },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: Spacing.three },
-  search: {
-    flex: 1,
-    maxWidth: Size.searchMax,
-    minHeight: TouchTarget,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.pill,
-    backgroundColor: FixedColors.heroGlass,
-    borderWidth: 1,
-    borderColor: FixedColors.heroGlassBorder,
-  },
   iconButton: {
     width: TouchTarget,
     height: TouchTarget,

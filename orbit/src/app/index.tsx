@@ -1,3 +1,4 @@
+import { PlanCard } from '@/features/brain/plan-card';
 import { Hero } from '@/features/dashboard/hero';
 import { FriendsCard, LiveCard } from '@/features/dashboard/cards';
 import { Grid } from '@/features/dashboard/grid';
@@ -21,7 +22,8 @@ export default function DashboardScreen() {
   const firstName = profile?.display_name?.split(' ')[0];
 
   return (
-    <Screen title="Home" hero={<Hero name={firstName} fullName={fullName} unread={0} />}>
+    <Screen title="Home" hero={<Hero name={firstName} fullName={fullName} avatarUrl={profile?.avatar_url} unread={0} />}>
+      <PlanCard />
       <Grid row={isWide} weights={[1, 1.15]}>
         <NextClassCard />
         <MapCard />

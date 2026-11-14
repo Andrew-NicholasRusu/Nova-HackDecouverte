@@ -22,6 +22,7 @@ export function applyWebTheme(scheme: 'light' | 'dark') {
     ::selection { background: ${c.accent}; color: ${c.accentText}; }
     * { scrollbar-width: thin; scrollbar-color: ${c.border} transparent; }
     :focus-visible { outline: 2px solid ${c.accentLink}; outline-offset: 2px; border-radius: 4px; }
+    input:focus-visible, textarea:focus-visible { outline: none; }
     body { font-variant-numeric: tabular-nums; text-rendering: optimizeLegibility; }
   `;
 }

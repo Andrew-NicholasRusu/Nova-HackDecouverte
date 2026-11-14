@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,15 +21,24 @@ type Props = {
   onSelect: (floor: Floor) => void;
   /** Back to the building view. */
   onClose: () => void;
+  /** Room label (e.g. "MB-1.130") to highlight as soon as the plan opens, e.g. from search. */
+  focusRoom?: string;
 };
 
 /**
  * Full-screen floor plan. The plan takes all space not used by controls:
  * wide screens put controls in a sidebar, narrow ones in a top bar and bottom floor row.
  */
-export function FloorPlanModal({ floor, onSelect, onClose }: Props) {
+export function FloorPlanModal({ floor, onSelect, onClose, focusRoom }: Props) {
   const wide = useWindowDimensions().width >= WIDE_BREAKPOINT;
   const [picked, setPicked] = useState<Room | null>(null);
+  // A new focusRoom (from search or a deep link) selects that room; adjusted during render, not in an effect.
+  const [seenFocus, setSeenFocus] = useState<string | undefined>(undefined);
+  if (focusRoom !== seenFocus) {
+    setSeenFocus(focusRoom);
+    const target = focusRoom ? getOtherRooms('').find((r) => r.label === focusRoom) : undefined;
+    if (target) setPicked(target);
+  }
   const room = picked && picked.floor === floor?.id ? picked : null;
   const [listOpen, setListOpen] = useState(false);
   const [planBox, setPlanBox] = useState({ width: 0, height: 0 });
@@ -47,16 +56,19 @@ export function FloorPlanModal({ floor, onSelect, onClose }: Props) {
     setListOpen(false);
   };
   // Manual floor changes and closing drop the selection: a room belongs to one floor.
-  const switchFloor = (f: Floor) => {
-    setPicked(null);
-    setListOpen(false);
-    onSelect(f);
-  };
-  const close = () => {
+  const switchFloor = useCallback(
+    (f: Floor) => {
+      setPicked(null);
+      setListOpen(false);
+      onSelect(f);
+    },
+    [onSelect],
+  );
+  const close = useCallback(() => {
     setPicked(null);
     setListOpen(false);
     onClose();
-  };
+  }, [onClose]);
 
   const index = floor ? MOLSON_FLOORS.findIndex((f) => f.id === floor.id) : -1;
   const lower = MOLSON_FLOORS[index - 1];

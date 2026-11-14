@@ -3,10 +3,10 @@ import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Pill } from '@/components/ui/pill';
 import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyState } from '@/components/ui/state-views';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 
 import { ClassBlock } from './class-block';
 import { calculateFreePeriods, calculateNextClass, occurrencesOnDate } from './engine';
@@ -16,10 +16,13 @@ import { useClassEvents } from './store';
 
 /** Molson (MB) has indoor floor plans; everything else opens the building directory. */
 function openRoom(event: ClassEvent) {
-  router.push('/navigator');
+  router.push({
+    pathname: '/navigator',
+    params: { building: event.buildingCode, ...(event.buildingCode === 'MB' && event.room ? { room: `MB-${event.room}` } : {}) },
+  });
 }
 
-/** Dashboard hero (PLAN.md §3.2 B): what's on now / next, with a countdown and a route to the room. */
+/** What's on now / next, with a live countdown and a route to the room. */
 export function NextClassCard() {
   const schedule = useClassEvents();
   const now = useNow();
@@ -35,12 +38,13 @@ export function NextClassCard() {
       );
     }
     return (
-      <EmptyState
-        title="No classes yet"
-        message="Add your classes to see your next class and a countdown here."
-        actionLabel="Set up my schedule"
-        onAction={() => router.push('/schedule')}
-      />
+      <Card>
+        <CardHeader icon="event" title="Next class" />
+        <ThemedText type="small" themeColor="textSecondary">
+          Add your classes once and Orbit counts down to the next one for you.
+        </ThemedText>
+        <Button label="Set up my schedule" icon="add" onPress={() => router.push('/schedule')} />
+      </Card>
     );
   }
 
@@ -49,7 +53,7 @@ export function NextClassCard() {
   if (!occ) {
     return (
       <Card>
-        <ThemedText type="heading">No upcoming classes</ThemedText>
+        <CardHeader icon="event" title="Next class" />
         <ThemedText type="small" themeColor="textSecondary">
           Nothing scheduled in the next few months. Add next term&apos;s classes when you have them.
         </ThemedText>
@@ -60,29 +64,32 @@ export function NextClassCard() {
 
   const e = occ.event;
   const color = courseColor(e);
-  const label = current
-    ? `Now · ends in ${formatDuration(Math.max(1, Math.round((occ.end.getTime() - now.getTime()) / 60_000)))}`
-    : `Next class · ${formatStartsIn(occ.start, now)}`;
+  const countdown = current
+    ? `Ends in ${formatDuration(Math.max(1, Math.round((occ.end.getTime() - now.getTime()) / 60_000)))}`
+    : formatStartsIn(occ.start, now);
 
   return (
-    <Card style={[styles.hero, { borderLeftColor: color }]}>
-      <ThemedText type="caption" style={{ color }}>
-        {label.toUpperCase()}
-      </ThemedText>
-      <View>
-        <ThemedText type="subtitle">{e.courseCode}</ThemedText>
-        {e.title ? (
-          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-            {e.title}
-          </ThemedText>
-        ) : null}
+    <Card>
+      <CardHeader icon="event" title={current ? 'In class now' : 'Next class'} actionLabel="Schedule" onAction={() => router.push('/schedule')} />
+      <View style={styles.codeRow}>
+        <View style={[styles.swatch, { backgroundColor: color }]} />
+        <View style={styles.grow}>
+          <ThemedText type="subtitle">{e.courseCode}</ThemedText>
+          {e.title ? (
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+              {e.title}
+            </ThemedText>
+          ) : null}
+        </View>
       </View>
-      <ThemedText type="default">
-        {e.startTime}–{e.endTime} · {formatLocation(e)}
+      <ThemedText type="stat" themeColor="accentLink" accessibilityLiveRegion="polite">
+        {countdown}
       </ThemedText>
-      {e.buildingCode ? (
-        <Button label={`Find ${formatLocation(e)}`} onPress={() => openRoom(e)} />
-      ) : null}
+      <View style={styles.meta}>
+        <Pill label={`${e.startTime}–${e.endTime}`} />
+        {e.buildingCode ? <Pill label={formatLocation(e)} tone="accent" /> : null}
+      </View>
+      {e.buildingCode ? <Button label={`Find ${formatLocation(e)}`} icon="near-me" onPress={() => openRoom(e)} /> : null}
       {current && next && toLocalDate(next.start) === toLocalDate(now) ? (
         <ThemedText type="small" themeColor="textSecondary">
           Then {next.event.courseCode} at {next.event.startTime} · {formatLocation(next.event)}
@@ -92,7 +99,7 @@ export function NextClassCard() {
   );
 }
 
-/** Today's classes and breaks (PLAN.md §3.2 C). Hidden when there's nothing today. */
+/** Today's classes and breaks. Hidden when there's nothing today. */
 export function TodayCard() {
   const schedule = useClassEvents();
   const now = useNow();
@@ -104,25 +111,21 @@ export function TodayCard() {
 
   return (
     <Card>
-      <View style={styles.row}>
-        <ThemedText type="heading">Today</ThemedText>
-        <ThemedText type="caption" themeColor="textSecondary">
-          {remaining === 0 ? 'Done for the day' : `${remaining} left`}
-        </ThemedText>
+      <CardHeader icon="today" title={remaining === 0 ? 'Today · done for the day' : `Today · ${remaining} left`} actionLabel="Schedule" onAction={() => router.push('/schedule')} />
+      <View style={styles.list}>
+        {today.map((o, i) => (
+          <ClassBlock
+            key={`${o.event.id}-${i}`}
+            event={o.event}
+            status={o.start <= now && o.end > now ? 'now' : o.end <= now ? 'done' : undefined}
+            onPress={() => router.push('/schedule')}
+          />
+        ))}
       </View>
-      {today.map((o, i) => (
-        <ClassBlock
-          key={`${o.event.id}-${i}`}
-          event={o.event}
-          status={o.start <= now && o.end > now ? 'now' : o.end <= now ? 'done' : undefined}
-          onPress={() => router.push('/schedule')}
-        />
-      ))}
       {longestBreak ? (
         <ThemedText type="small" themeColor="textSecondary">
           Longest break: {formatDuration(longestBreak.minutes)} from{' '}
-          {String(longestBreak.start.getHours()).padStart(2, '0')}:
-          {String(longestBreak.start.getMinutes()).padStart(2, '0')}
+          {String(longestBreak.start.getHours()).padStart(2, '0')}:{String(longestBreak.start.getMinutes()).padStart(2, '0')}
         </ThemedText>
       ) : null}
     </Card>
@@ -130,6 +133,9 @@ export function TodayCard() {
 }
 
 const styles = StyleSheet.create({
-  hero: { borderLeftWidth: 4, gap: Spacing.two },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  codeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  swatch: { width: Spacing.three, height: Spacing.five, borderRadius: Radius.pill },
+  grow: { flex: 1 },
+  meta: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
+  list: { gap: Spacing.two },
 });

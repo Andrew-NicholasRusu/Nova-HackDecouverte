@@ -19,7 +19,11 @@ import {
   type Occurrence,
 } from '@/features/schedule/engine';
 import { formatDateLabel, formatDays, formatDuration, useNow } from '@/features/schedule/format';
-import { parseIcs, type ImportDraft } from '@/features/schedule/ics';
+import type { ImportDraft } from '@/features/schedule/ics';
+import { ImportSourceSheet } from '@/features/schedule/import-source-sheet';
+import { WeekGrid } from '@/features/schedule/week-grid';
+import { useLayout } from '@/hooks/use-layout';
+import { usePersisted } from '@/lib/persisted-store';
 import { ImportReview } from '@/features/schedule/import-review';
 import {
   addDays,
@@ -28,7 +32,6 @@ import {
   toLocalDate,
   type ClassEvent,
 } from '@/features/schedule/model';
-import { pickCalendarFile } from '@/features/schedule/pick-calendar-file';
 import { createClasses, deleteClass, loadClassEvents, updateClass, useClassEvents } from '@/features/schedule/store';
 
 type Editor = { mode: 'new' } | { mode: 'edit'; event: ClassEvent };
@@ -72,27 +75,20 @@ export default function ScheduleScreen() {
   const now = useNow();
   const today = toLocalDate(now);
 
-  const [view, setView] = useState<'day' | 'week'>('week');
+  const { isMedium } = useLayout();
+  const [savedView, setSavedView] = usePersisted<'day' | 'week' | null>('orbit.schedule.view', null);
+  const view = savedView ?? (isMedium ? 'week' : 'day');
+  const setView = setSavedView;
   const [date, setDate] = useState(today);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [notice, setNotice] = useState<{ text: string; tone: 'success' | 'danger' } | null>(null);
 
   const events = schedule.events;
   const conflicts = useMemo(() => calculateScheduleConflicts(events), [events]);
   const conflictIds = useMemo(() => new Set(conflicts.flatMap((c) => [c.a.id, c.b.id])), [conflicts]);
-
-  async function startImport() {
-    setNotice(null);
-    try {
-      const file = await pickCalendarFile();
-      if (!file) return;
-      const { drafts, skipped } = parseIcs(file.text);
-      setPendingImport({ fileName: file.name, drafts, skipped });
-    } catch (e) {
-      setNotice({ text: e instanceof Error ? e.message : 'Could not read that file.', tone: 'danger' });
-    }
-  }
 
   const step = view === 'day' ? 1 : 7;
   const weekStart = startOfWeek(date);
@@ -104,13 +100,13 @@ export default function ScheduleScreen() {
       : `Week of ${formatDateLabel(weekStart, 'short')}`;
 
   return (
-    <Screen title="Schedule" subtitle="Your classes, in one place">
+    <Screen onRefresh={loadClassEvents} title="Schedule" subtitle="Your classes, in one place">
       <View style={styles.actions}>
         <View style={styles.flex}>
           <Button label="Add class" onPress={() => setEditor({ mode: 'new' })} />
         </View>
         <View style={styles.flex}>
-          <Button label="Import .ics" variant="secondary" onPress={startImport} />
+          <Button label="Import" variant="secondary" icon="upload-file" onPress={() => { setNotice(null); setImporting(true); }} />
         </View>
       </View>
 
@@ -133,9 +129,9 @@ export default function ScheduleScreen() {
       {schedule.status === 'ready' && events.length === 0 ? (
         <EmptyState
           title="No classes yet"
-          message="Add your classes one by one, or import the .ics calendar file exported from your student portal."
-          actionLabel="Import .ics"
-          onAction={startImport}
+          message="Add your classes one by one, or import a calendar, PDF or photo of your schedule and Orbit reads it for you."
+          actionLabel="Import a file"
+          onAction={() => setImporting(true)}
         />
       ) : null}
 
@@ -187,6 +183,19 @@ export default function ScheduleScreen() {
                 </Card>
               );
             })()
+          ) : isMedium ? (
+            <WeekGrid
+              weekStart={weekStart}
+              events={events}
+              now={now}
+              today={today}
+              conflictIds={conflictIds}
+              onOpen={(event) => setEditor({ mode: 'edit', event })}
+              onOpenDay={(d) => {
+                setDate(d);
+                setView('day');
+              }}
+            />
           ) : (
             [0, 1, 2, 3, 4, 5, 6].map((offset) => {
               const day = addDays(weekStart, offset);
@@ -203,7 +212,7 @@ export default function ScheduleScreen() {
                       setView('day');
                     }}
                     style={styles.dayHeader}>
-                    <ThemedText type="smallBold" themeColor={day === today ? 'accent' : 'text'}>
+                    <ThemedText type="smallBold" themeColor={day === today ? 'accentLink' : 'text'}>
                       {formatDateLabel(day, 'short')}
                       {day === today ? ' · Today' : ''}
                     </ThemedText>
@@ -226,7 +235,7 @@ export default function ScheduleScreen() {
 
           <View style={styles.all}>
             <ThemedText type="subtitle">All classes · {events.length}</ThemedText>
-            {events.map((e) => (
+            {(showAll ? events : events.slice(0, 4)).map((e) => (
               <ClassBlock
                 key={e.id}
                 event={e}
@@ -235,6 +244,9 @@ export default function ScheduleScreen() {
                 onPress={() => setEditor({ mode: 'edit', event: e })}
               />
             ))}
+            {events.length > 4 ? (
+              <Button label={showAll ? 'Show fewer' : `Show all ${events.length} classes`} variant="secondary" icon={showAll ? 'expand-less' : 'expand-more'} onPress={() => setShowAll((v) => !v)} />
+            ) : null}
           </View>
         </>
       ) : null}
@@ -257,6 +269,16 @@ export default function ScheduleScreen() {
                 }
               : undefined
           }
+        />
+      ) : null}
+
+      {importing ? (
+        <ImportSourceSheet
+          onClose={() => setImporting(false)}
+          onParsed={(p) => {
+            setImporting(false);
+            setPendingImport(p);
+          }}
         />
       ) : null}
 

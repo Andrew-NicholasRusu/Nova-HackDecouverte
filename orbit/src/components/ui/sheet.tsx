@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleShee
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { FormWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type Props = {
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   title: { flex: 1, textAlign: 'center' },
   disabled: { opacity: 0.4 },
   scroll: { alignItems: 'center', padding: Spacing.three, paddingBottom: Spacing.six },
-  content: { width: '100%', maxWidth: MaxContentWidth, gap: Spacing.three },
+  content: { width: '100%', maxWidth: FormWidth, gap: Spacing.three },
   footer: {
     padding: Spacing.three,
     borderTopWidth: StyleSheet.hairlineWidth,
