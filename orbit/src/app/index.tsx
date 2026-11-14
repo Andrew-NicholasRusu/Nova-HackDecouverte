@@ -3,9 +3,9 @@ import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
-import { EmptyState } from '@/components/ui/state-views';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/features/profile/use-profile';
+import { NextClassCard } from '@/features/schedule/next-class-card';
 import { supabase } from '@/lib/supabase';
 
 function greeting(date = new Date()) {
@@ -25,12 +25,7 @@ export default function DashboardScreen() {
     <Screen
       title={name ? `${greeting()}, ${name}` : greeting()}
       subtitle="Your university, in one orbit.">
-      <EmptyState
-        title="No upcoming class"
-        message="Add your classes to see your next class and a countdown here."
-        actionLabel="Open Schedule"
-        onAction={() => router.push('/schedule')}
-      />
+      <NextClassCard />
 
       <Card>
         <ThemedText type="heading">Find a room</ThemedText>
