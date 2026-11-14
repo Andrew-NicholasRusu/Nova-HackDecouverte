@@ -4,9 +4,10 @@ import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-type Props = TextInputProps & { label: string };
+type Props = TextInputProps & { label: string; error?: string; hint?: string };
 
-export function TextField({ label, style, ...rest }: Props) {
+/** Labelled input with optional hint and inline error. */
+export function TextField({ label, error, hint, style, ...rest }: Props) {
   const theme = useTheme();
   return (
     <View style={styles.wrap}>
@@ -15,14 +16,28 @@ export function TextField({ label, style, ...rest }: Props) {
       </ThemedText>
       <TextInput
         accessibilityLabel={label}
+        accessibilityHint={error ?? hint}
         placeholderTextColor={theme.textSecondary}
         style={[
           styles.input,
-          { color: theme.text, backgroundColor: theme.background, borderColor: theme.border },
+          {
+            color: theme.text,
+            backgroundColor: theme.background,
+            borderColor: error ? theme.danger : theme.border,
+          },
           style,
         ]}
         {...rest}
       />
+      {error ? (
+        <ThemedText type="caption" themeColor="danger">
+          {error}
+        </ThemedText>
+      ) : hint ? (
+        <ThemedText type="caption" themeColor="textSecondary">
+          {hint}
+        </ThemedText>
+      ) : null}
     </View>
   );
 }
@@ -34,6 +49,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
     fontSize: 16,
   },
 });

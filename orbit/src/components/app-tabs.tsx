@@ -18,8 +18,6 @@ export default function AppTabs() {
           <NativeTabs.Trigger.Icon sf={tab.sf} md={tab.md} />
         </NativeTabs.Trigger>
       ))}
-      {/* Reached from the Navigator tab, not a tab of its own. */}
-      <NativeTabs.Trigger name="floorplan" hidden />
     </NativeTabs>
   );
 }
