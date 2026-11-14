@@ -1,98 +1,53 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Card } from '@/components/ui/card';
+import { Screen } from '@/components/ui/screen';
+import { EmptyState } from '@/components/ui/state-views';
+import { Button } from '@/components/ui/button';
+import { useProfile } from '@/features/profile/use-profile';
+import { supabase } from '@/lib/supabase';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
+function greeting(date = new Date()) {
+  const h = date.getHours();
+  if (h < 5) return 'Good night';
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
 }
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+/** Dashboard shell (PLAN.md §3). Real data is wired in as each module lands. */
+export default function DashboardScreen() {
+  const profile = useProfile();
+  const name = profile?.display_name?.split(' ')[0];
 
-        <ThemedText type="code" style={styles.code}>
-          get started
+  return (
+    <Screen
+      title={name ? `${greeting()}, ${name}` : greeting()}
+      subtitle="Your university, in one orbit.">
+      <EmptyState
+        title="No upcoming class"
+        message="Add your classes to see your next class and a countdown here."
+        actionLabel="Open Schedule"
+        onAction={() => router.push('/schedule')}
+      />
+
+      <Card>
+        <ThemedText type="heading">Find a room</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          Browse Concordia buildings on both campuses.
         </ThemedText>
+        <Button label="Open Navigator" onPress={() => router.push('/navigator')} />
+      </Card>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+      <Card>
+        <ThemedText type="heading">Friends & Campus Live</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          Friend availability and community reports will show up here.
+        </ThemedText>
+      </Card>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+      <Button label="Sign out" variant="secondary" onPress={() => supabase.auth.signOut()} />
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});

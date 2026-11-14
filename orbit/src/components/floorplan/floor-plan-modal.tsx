@@ -29,7 +29,8 @@ type Props = {
  */
 export function FloorPlanModal({ floor, onSelect, onClose }: Props) {
   const wide = useWindowDimensions().width >= WIDE_BREAKPOINT;
-  const [room, setRoom] = useState<Room | null>(null);
+  const [picked, setPicked] = useState<Room | null>(null);
+  const room = picked && picked.floor === floor?.id ? picked : null;
   const [listOpen, setListOpen] = useState(false);
   const [planBox, setPlanBox] = useState({ width: 0, height: 0 });
   const planSquare = Math.min(planBox.width, planBox.height);
@@ -38,18 +39,23 @@ export function FloorPlanModal({ floor, onSelect, onClose }: Props) {
   const otherRooms = useMemo(() => (floor ? getOtherRooms(floor.id) : []), [floor]);
   const svg = useMemo(() => (floor ? highlightRoom(floor.svg, room) : ''), [floor, room]);
 
-  // A room belongs to one floor: clear the selection when another floor opens or the view closes.
-  useEffect(() => {
-    setRoom((r) => (r && r.floor === floor?.id ? r : null));
-    setListOpen(false);
-  }, [floor?.id]);
-
   const pick = (r: Room | null) => {
-    setRoom(r);
+    setPicked(r);
     // A match on another floor switches to that floor first.
     const target = r && r.floor !== floor?.id ? MOLSON_FLOORS.find((f) => f.id === r.floor) : null;
     if (target) onSelect(target);
     setListOpen(false);
+  };
+  // Manual floor changes and closing drop the selection: a room belongs to one floor.
+  const switchFloor = (f: Floor) => {
+    setPicked(null);
+    setListOpen(false);
+    onSelect(f);
+  };
+  const close = () => {
+    setPicked(null);
+    setListOpen(false);
+    onClose();
   };
 
   const index = floor ? MOLSON_FLOORS.findIndex((f) => f.id === floor.id) : -1;
@@ -60,19 +66,19 @@ export function FloorPlanModal({ floor, onSelect, onClose }: Props) {
   useEffect(() => {
     if (Platform.OS !== 'web' || !floor) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      else if (e.key === 'ArrowUp' && upper) onSelect(upper);
-      else if (e.key === 'ArrowDown' && lower) onSelect(lower);
+      if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowUp' && upper) switchFloor(upper);
+      else if (e.key === 'ArrowDown' && lower) switchFloor(lower);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [floor, lower, upper, onClose, onSelect]);
+  }, [floor, lower, upper, close, switchFloor]);
 
   const back = (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Back to building"
-      onPress={onClose}
+      onPress={close}
       style={({ pressed }) => [styles.back, pressed && styles.pressed]}
     >
       <ThemedText type="link">← Back to building</ThemedText>
@@ -91,14 +97,14 @@ export function FloorPlanModal({ floor, onSelect, onClose }: Props) {
   );
 
   return (
-    <Modal visible={!!floor} animationType="fade" onRequestClose={onClose}>
+    <Modal visible={!!floor} animationType="fade" onRequestClose={close}>
       <ThemedView style={styles.root}>
         <SafeAreaView style={[styles.layout, wide && styles.layoutWide]}>
           {wide ? (
             <ThemedView type="backgroundElement" style={styles.sidebar}>
               {back}
               {title}
-              <FloorSwitcher selectedId={floor?.id} onSelect={onSelect} />
+              <FloorSwitcher selectedId={floor?.id} onSelect={switchFloor} />
               <RoomList
                 rooms={rooms}
                 otherRooms={otherRooms}
@@ -188,7 +194,7 @@ export function FloorPlanModal({ floor, onSelect, onClose }: Props) {
 
           {!wide && (
             <ThemedView type="backgroundElement" style={styles.bottomBar}>
-              <FloorSwitcher selectedId={floor?.id} onSelect={onSelect} />
+              <FloorSwitcher selectedId={floor?.id} onSelect={switchFloor} />
             </ThemedView>
           )}
         </SafeAreaView>
